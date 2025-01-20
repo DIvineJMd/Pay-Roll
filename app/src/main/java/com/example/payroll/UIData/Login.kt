@@ -81,12 +81,6 @@ fun LoginPage(
             hasAllPermissions(context)
         )
     }
-    var isTracking by remember {
-        mutableStateOf(
-            context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
-                .getBoolean("is_tracking", false)
-        )
-    }
     // Check initial permission states
     LaunchedEffect(Unit) {
         checkInitialPermissions(context) { location, background, battery ->

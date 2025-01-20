@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -14,30 +15,49 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.startForegroundService
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.example.payroll.R
 import com.example.payroll.Worker.startLocationTracking
 import com.example.payroll.data.ViewModel
 import com.example.payroll.Worker.LocationForegroundService
+import com.example.payroll.database.User
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
     var showBatteryDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
-
     // State to track permissions
     var hasLocationPermissions by remember { mutableStateOf(false) }
     var hasBackgroundPermission by remember { mutableStateOf(false) }
@@ -53,6 +73,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                 .getBoolean("is_tracking", false)
         )
     }
+    val user by viewModel.userData.collectAsState()
     // Check initial permission states
     LaunchedEffect(Unit) {
         checkInitialPermissions(context) { location, background, battery ->
@@ -61,7 +82,9 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
             hasBatteryOptimization = battery
         }
     }
-
+    LaunchedEffect(Unit) {
+        viewModel.fetchUserData()
+    }
     val backgroundPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -94,6 +117,43 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
             showBatteryDialog = true
         }
     }
+    LaunchedEffect(hasPermissions, isTracking) {
+        println("-----> $hasPermissions $isTracking")
+        if (hasPermissions || !isTracking) {
+            // Start the location service only if not already tracking
+            println("Starting the service as permissions are granted and tracking is not active")
+
+            val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
+                action = "START_TRACKING"
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+            println("Started ======>")
+            // Update state and shared preferences
+            isTracking = true
+            context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("is_tracking", true)
+                .apply()
+
+        } else if (!hasPermissions && isTracking) {
+            println("permission revoked---------->")
+            requestPermissionsInSequence(
+                context,
+                locationPermissionLauncher,
+                backgroundPermissionLauncher,
+                hasLocationPermissions,
+                hasBackgroundPermission,
+                hasBatteryOptimization
+            ) {
+                showBatteryDialog = true
+            }
+
+        }
+    }
 
     // Battery optimization dialog
     if (showBatteryDialog) {
@@ -107,7 +167,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                         showBatteryDialog = false
                         context.requestDisableBatteryOptimization()
                         hasBatteryOptimization = true
-                    hasPermissions=  hasAllPermissions(context)
+                        hasPermissions = hasAllPermissions(context)
                     }
                 ) {
                     Text("DISABLE")
@@ -127,48 +187,120 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Button(
-            onClick = {
-                if (hasAllPermissions(context)) {
-                    val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
-                        action = if (!isTracking) "START_TRACKING" else "STOP_TRACKING"
-                    }
+//        Button(
+//            onClick = {
+//                if (hasAllPermissions(context)) {
+//                    val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
+//                        action = if (!isTracking) "START_TRACKING" else "STOP_TRACKING"
+//                    }
+//
+//                    if (!isTracking) {
+//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                            context.startForegroundService(serviceIntent)
+//                        } else {
+//                            context.startService(serviceIntent)
+//                        }
+//                    } else {
+//                        context.stopService(serviceIntent)
+//                    }
+//
+//                    isTracking = !isTracking
+//                    context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+//                        .edit()
+//                        .putBoolean("is_tracking", isTracking)
+//                        .apply()
+//                } else {
+//                    requestPermissionsInSequence(
+//                        context,
+//                        locationPermissionLauncher,
+//                        backgroundPermissionLauncher,
+//                        hasLocationPermissions,
+//                        hasBackgroundPermission,
+//                        hasBatteryOptimization
+//                    ) {
+//                        showBatteryDialog = true
+//                    }
+//                }
+//            }
+//        ) {
+//            Text(if (isTracking) "Stop Tracking" else "Start Tracking")
+//        }
 
-                    if (!isTracking) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(serviceIntent)
-                        } else {
-                            context.startService(serviceIntent)
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    navigationIcon = {},
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Profile icon
+                            Image(
+                                painter = painterResource(id = R.drawable.profile), // Replace with your profile icon resource
+                                contentDescription = "Profile Icon",
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp)) // Space between icon and text
+                            Column {
+                                Text(
+                                    text = "Hey, ${user?.username ?: "Guest"}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = "Hey, ${user?.empId ?: ""}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Color.Gray
+                                )
+                            }
                         }
-                    } else {
-                        context.stopService(serviceIntent)
+                    },
+                    actions = {
+                        IconButton(onClick = { /* Handle settings click */ }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.bell),
+                                contentDescription = "Settings",
+                                tint = Color.Red
+                            )
+                        }
                     }
+                )
+            }) {
+            Column(modifier = Modifier.padding(it).fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top) {
+                val currentDateTime = LocalDateTime.now()
+                val timeFormatter =
+                    DateTimeFormatter.ofPattern("hh:mm a")
+                val dateFormatter =
+                    DateTimeFormatter.ofPattern("MMM dd, yyyy - EEEE")
+                val formattedTime = currentDateTime.format(timeFormatter)
+                val formattedDate = currentDateTime.format(dateFormatter)
+                Spacer(Modifier.height(25.dp))
+                Text(
+                    text = formattedTime,
+                    style = MaterialTheme.typography.titleLarge,
 
-                    isTracking = !isTracking
-                } else {
-                    requestPermissionsInSequence(
-                        context,
-                        locationPermissionLauncher,
-                        backgroundPermissionLauncher,
-                        hasLocationPermissions,
-                        hasBackgroundPermission,
-                        hasBatteryOptimization
-                    ) {
-                        showBatteryDialog = true
-                    }
-                }
+                    fontSize = 45.sp
+                )
+                Text(
+                    text = formattedDate,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(8.dp),
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(25.dp))
+                PunchInCircleButton({})
             }
-        ) {
-            Text(if (isTracking) "Stop Tracking" else "Start Tracking")
+
         }
 
-        // Status texts
-        if (isTracking) {
-            Text(
-                "Location tracking is active",
-                modifier = Modifier.padding(top = 16.dp)
-            )
-        }
+//        LocationListScreen(viewModel = viewModel,modifier.padding(it))
 
         if (!hasPermissions) {
             Text(
@@ -178,15 +310,54 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
             )
         }
 
-        LocationListScreen(viewModel = viewModel)
+
     }
 }
-
 @Composable
-fun LocationListScreen(viewModel: ViewModel) {
+fun PunchInCircleButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isEnabled: Boolean = true
+) {
+    Box(
+        modifier = modifier
+            .size(200.dp)
+            .clip(CircleShape)
+            .background(Color.White)
+            .border(
+                width = 25.dp,
+                color = if (isEnabled) Color(0xFFE1E5E9) else Color.Gray, // Blue border
+                shape = CircleShape
+            )
+            .clickable(enabled = isEnabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+//            Icon(
+//                imageVector = Icons.Default.TouchApp,
+//                contentDescription = "Punch In",
+//                modifier = Modifier.size(32.dp),
+//                tint = Color(0xFF4CAF50) // Green color for the icon
+//            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "PUNCH IN",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Black,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+@Composable
+fun LocationListScreen(viewModel: ViewModel, modifier: Modifier) {
     val locations by viewModel.locations.collectAsState()
 
-    LazyColumn {
+    LazyColumn(modifier = modifier) {
         items(locations) { location ->
             Card(
                 modifier = Modifier.padding(5.dp),
@@ -223,9 +394,11 @@ fun requestPermissionsInSequence(
                 )
             )
         }
+
         !hasBackground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
             backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
+
         !hasBattery -> {
             showBatteryDialog()
         }

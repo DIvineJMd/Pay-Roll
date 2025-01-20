@@ -31,7 +31,8 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 
     private val _Post = MutableStateFlow<Resource<String>>(Resource.Loading)
     val post: StateFlow<Resource<String>> = _Post.asStateFlow()
-
+    private val _userData = MutableStateFlow<User?>(null)
+    val userData: StateFlow<User?> = _userData
 
     private var authToken: String? = null
     val locations: StateFlow<List<com.example.payroll.database.LocationRequest>> =
@@ -65,7 +66,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
                         )
 
 
-                        saveAuthToken(context, authToken!!, loginResponse.empId.toString())
+//                        saveAuthToken(context, authToken!!, loginResponse.empId.toString())
 
                         _loginState.value = Resource.Success("Login Successful")
                         Log.d("LoginResult", "Login Successful")
@@ -85,17 +86,17 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
     }
 
-    private fun saveAuthToken(context: Context, token: String, empID: String) {
-        val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
-        sharedPref.edit().apply {
-            putString("auth_token", token)
-            apply()
-        }
-        sharedPref.edit().apply {
-            putString("empID", empID)
-            apply()
-        }
-    }
+//    private fun saveAuthToken(context: Context, token: String, empID: String) {
+//        val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+//        sharedPref.edit().apply {
+//            putString("auth_token", token)
+//            apply()
+//        }
+//        sharedPref.edit().apply {
+//            putString("empID", empID)
+//            apply()
+//        }
+//    }
 
     fun saveLocation(request: LocationRequest, context: Context) {
         _Post.value = Resource.Loading
@@ -122,7 +123,6 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     }
 
     suspend fun getAuthToken(context: Context): String? {
-        val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
         val data = userRepository.getUser()
 
         // Get the expiry time
@@ -132,22 +132,26 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         val currentTime = System.currentTimeMillis()
 
         // Check if the token exists
-        val authToken = sharedPref.getString("auth_token", null)
+//        val authToken = sharedPref.getString("auth_token", null)
+        val authToken= data?.token
 
         // If the token exists and has expired, remove it
         if (expiryTime != null) {
+            println("----> checking expriry time")
             if (authToken != null && expiryTime < currentTime) {
-                sharedPref.edit().remove("auth_token").apply()
-                sharedPref.edit().remove("empID").apply()
                 userRepository.clearUser()
                 return null
             }
         }
-        if(sharedPref.getString("empID", null) == null){
-            return null
-        }
+
         return authToken
     }
-
+    fun fetchUserData() {
+        viewModelScope.launch {
+            val user = userRepository.getUser()
+            _userData.value = user
+        }
+    }
 
 }
+

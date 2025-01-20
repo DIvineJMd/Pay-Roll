@@ -50,12 +50,8 @@ class LocationForegroundService : Service() {
     private fun startPendingLocationsCheck() {
         pendingLocationsJob = serviceScope.launch {
             while (isActive) {
-                val token = getSharedPreferences("AppData", MODE_PRIVATE)
-                    .getString("auth_token", null)
+                    sendPendingLocations()
 
-                if (!token.isNullOrEmpty()) {
-                    sendPendingLocations(token)
-                }
                 delay(TimeUnit.MINUTES.toMillis(15)) // Check every 15 minutes
             }
         }
@@ -127,24 +123,23 @@ class LocationForegroundService : Service() {
         override fun onLocationResult(locationResult: LocationResult) {
             locationResult.lastLocation?.let { location ->
                 Log.d(TAG, "Location update received: ${location.latitude}, ${location.longitude}")
-                handleLocation(location)
+                serviceScope.launch{ handleLocation(location) }
             }
         }
     }
 
-    private fun handleLocation(location: android.location.Location) {
+    private suspend fun handleLocation(location: android.location.Location) {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val formattedTime = dateFormat.format(Date())
-
-        val sharedPref = getSharedPreferences("AppData", MODE_PRIVATE)
-        val token = sharedPref.getString("auth_token", null)
-        val empId = sharedPref.getString("empID", null) ?: "unknown"
-
+        val database =UserDatabase.getDatabase(this).userDao().getCurrentUser()
+        val token = database?.token
+        val empId = database?.empId
+        println("handling location data get ->.>>>>>>>> $token , $empId")
         val locationRequest = LocationRequest(
             lat = location.latitude.toString(),
             lang = location.longitude.toString(),
             timing = formattedTime,
-            accId = empId
+            accId = empId.toString()
         )
 
         serviceScope.launch {
@@ -232,8 +227,9 @@ class LocationForegroundService : Service() {
         notificationManager.notify(1, notification)
     }
 
-    private suspend fun sendPendingLocations(token: String) {
+    private suspend fun sendPendingLocations() {
         try {
+            val token = UserDatabase.getDatabase(this).userDao().getCurrentUser()?.token
             val pendingLocations = locationDao.getPendingLocations()
             val apiService = ApiClient.getInstance(token)
 
