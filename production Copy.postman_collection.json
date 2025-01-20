@@ -1,0 +1,544 @@
+{
+	"info": {
+		"_postman_id": "e8ea89c0-314c-4021-aa5f-f1e790fe0432",
+		"name": "production Copy",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39671774",
+		"_collection_link": "https://attendance-app-6874.postman.co/workspace/Attendance-App-Workspace~4e34b93f-3909-49ac-9bd5-ac98d2b51b03/collection/39671774-e8ea89c0-314c-4021-aa5f-f1e790fe0432?action=share&source=collection_link&creator=39671774"
+	},
+	"item": [
+		{
+			"name": "get-cycles",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDIwNiIsImlhdCI6MTczMjQ2NDc5NCwiZXhwIjoxNzMzMDY5NTk0LCJkYk5hbWUiOiJhY2NfZGJfMTE2In0.AjtXDSIm8vDPFwiCFL0Gn__l2Rkhjx1kDKGdQ6qL5rw",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/payroll/get-cycles?accId=494",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"payroll",
+						"get-cycles"
+					],
+					"query": [
+						{
+							"key": "accId",
+							"value": "494"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "signin",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"// Stores the token in an environment or global variable",
+							"var token = pm.response.json().token;",
+							"pm.globals.set(\"TOKEN\", token);",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n   \"userName\": \"20206\",\r\n   \"password\": \"A9B40\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/auth/signin",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"auth",
+						"signin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "attendance",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0NTYiLCJpYXQiOjE3MzE1NTY4MjksImV4cCI6MTczMTY0MzIyOSwiZGJOYW1lIjoiYWNjX2RiXzExNiJ9.-erHCYUF-ztD-sxealk4CakFYLkWPTqIQrXfq1A311g",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "data",
+							"value": "{\n    \"status\": \"present\",\n    \"transDate\": \"06-11-2024\",\n    \"inTime\":\"2024-11-06 12:20:36\",\n    \"lat\" :\"1212.12\",\n    \"lang\" :\"1212.12\"\n}",
+							"contentType": "application/json",
+							"type": "text"
+						},
+						{
+							"key": "image",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/attendance/save",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"attendance",
+						"save"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-attendance",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0NTYiLCJpYXQiOjE3MzE4MjY0MjgsImV4cCI6MTczMTkxMjgyOCwiZGJOYW1lIjoiYWNjX2RiXzExNiJ9.c77boiQ98oSl-9ujCKMGaxBSHF4007ajwkniDOezinc",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/attendance/get-attendance?reportBy=accId&reportByValue=495&dateFrom=01-11-2024&dateTo=30-11-2024",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"attendance",
+						"get-attendance"
+					],
+					"query": [
+						{
+							"key": "reportBy",
+							"value": "accId"
+						},
+						{
+							"key": "reportByValue",
+							"value": "495"
+						},
+						{
+							"key": "dateFrom",
+							"value": "01-11-2024"
+						},
+						{
+							"key": "dateTo",
+							"value": "30-11-2024"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "out-time",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDIwNiIsImlhdCI6MTczMjE4NTM1OCwiZXhwIjoxNzMyNzkwMTU4LCJkYk5hbWUiOiJhY2NfZGJfMTE2In0.YV7rN33dmcAZxOEPJgEoVSertrEdKF576F684otum00",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"accId\": 496,\r\n  \"transDate\": \"2024-11-16\",\r\n  \"outTime\": \"2024-11-16 13:20:36\",\r\n  \"remark\": \"This is a long remark with special characters: @#$%^&*() and newlines\\nlike this.\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/attendance/update-outtime",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"attendance",
+						"update-outtime"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "last-entry-type",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDIwNiIsImlhdCI6MTczMjMzOTY4OSwiZXhwIjoxNzMyOTQ0NDg5LCJkYk5hbWUiOiJhY2NfZGJfMTE2In0.t1G8yYD7Stjl5huNejTzAw4tP_ZUM8BYXxTltFpnwMs",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"accId\": 496,\r\n  \"transDate\": \"2024-11-16\",\r\n  \"outTime\": \"2024-11-16 13:20:36\",\r\n  \"remark\": \"This is a long remark with special characters: @#$%^&*() and newlines\\nlike this.\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/attendance/last-entry?accId=504",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"attendance",
+						"last-entry"
+					],
+					"query": [
+						{
+							"key": "accId",
+							"value": "504"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-sal-slip",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDIwNiIsImlhdCI6MTczMjg1NzI1OCwiZXhwIjoxNzMzNDYyMDU4LCJkYk5hbWUiOiJhY2NfZGJfMTE2In0.VJ62FKRYpR3l1q1aNIjkGEqHxS0QWzVS4sH_fjKCsqI",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"accId\": 496,\r\n  \"transDate\": \"2024-11-16\",\r\n  \"outTime\": \"2024-11-16 13:20:36\",\r\n  \"remark\": \"This is a long remark with special characters: @#$%^&*() and newlines\\nlike this.\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/payroll/get-sal-slip?accId=504&cycle=Oct, 2024",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"payroll",
+						"get-sal-slip"
+					],
+					"query": [
+						{
+							"key": "accId",
+							"value": "504"
+						},
+						{
+							"key": "cycle",
+							"value": "Oct, 2024"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-cycles",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDIwNiIsImlhdCI6MTczMjg1NzI1OCwiZXhwIjoxNzMzNDYyMDU4LCJkYk5hbWUiOiJhY2NfZGJfMTE2In0.VJ62FKRYpR3l1q1aNIjkGEqHxS0QWzVS4sH_fjKCsqI",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"accId\": 496,\r\n  \"transDate\": \"2024-11-16\",\r\n  \"outTime\": \"2024-11-16 13:20:36\",\r\n  \"remark\": \"This is a long remark with special characters: @#$%^&*() and newlines\\nlike this.\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/payroll/get-cycles?accId=494",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"payroll",
+						"get-cycles"
+					],
+					"query": [
+						{
+							"key": "accId",
+							"value": "494"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-leaves",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0NTYiLCJpYXQiOjE3MzE4NDU2MDAsImV4cCI6MTczMjQ1MDQwMCwiZGJOYW1lIjoiYWNjX2RiXzEwMyJ9.RVL4QG4vck9DvU9avOAv8SwPK9iRJEsjb9r0vhRkhuA",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/leave/get-all",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"leave",
+						"get-all"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-holidays",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDIwNiIsImlhdCI6MTczMjE4MTEwMCwiZXhwIjoxNzMyNzg1OTAwLCJkYk5hbWUiOiJhY2NfZGJfMTE2In0.qbtK4EJyzYXfSqygaFKn_-DWulOodvG_CE0oPMMWwNM",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/holiday/get-all",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"holiday",
+						"get-all"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-location",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer  {{TOKEN}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/location/get-all",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"location",
+						"get-all"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Save Leave Request",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0NTYiLCJpYXQiOjE3MzE4NTQ0NDksImV4cCI6MTczMjQ1OTI0OSwiZGJOYW1lIjoiYWNjX2RiXzExNiJ9.SxeM4NebZbIZAVBjkxIAg4wZstw2-L68k5Ac-rqGyZ8",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n   \"accId\": \"495\",\r\n   \"date\": \"2024-11-16\",\r\n   \"remark\": \"headache since yesterday\",\r\n   \"leaveType\": \"sick leave\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/leave/save",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"leave",
+						"save"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Save Location",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0NTYiLCJpYXQiOjE3MzE4NTQ0NDksImV4cCI6MTczMjQ1OTI0OSwiZGJOYW1lIjoiYWNjX2RiXzExNiJ9.SxeM4NebZbIZAVBjkxIAg4wZstw2-L68k5Ac-rqGyZ8",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n   \"accId\": \"495\",\r\n   \"timing\": \"2024-11-16 13:20:36\",\r\n   \"lat\": \"123.34\",\r\n   \"lang\": \"234.56\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://petroprime.info:8442/emp/api/location/save",
+					"protocol": "https",
+					"host": [
+						"petroprime",
+						"info"
+					],
+					"port": "8442",
+					"path": [
+						"emp",
+						"api",
+						"location",
+						"save"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
