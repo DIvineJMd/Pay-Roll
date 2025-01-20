@@ -23,8 +23,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -255,7 +258,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                                     style = MaterialTheme.typography.titleMedium,
                                 )
                                 Text(
-                                    text = "Hey, ${user?.empId ?: ""}",
+                                    text = "${user?.empId ?: ""}",
                                     style = MaterialTheme.typography.titleSmall,
                                     color = Color.Gray
                                 )
@@ -270,14 +273,21 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                                 tint = Color.Red
                             )
                         }
-                    }
-                )
-            }) {
-            Column(modifier = Modifier
-                .padding(it)
-                .fillMaxSize(),
+                    },
+
+                    )
+            },
+            bottomBar = {
+                CustomBottomBar()
+            }
+            ) {
+            Column(
+                modifier = Modifier
+                    .padding(it)
+                    .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top) {
+                verticalArrangement = Arrangement.Top
+            ) {
                 val currentDateTime = LocalDateTime.now()
                 val timeFormatter =
                     DateTimeFormatter.ofPattern("hh:mm a")
@@ -300,6 +310,32 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                 )
                 Spacer(Modifier.height(40.dp))
                 PunchInCircleButton({})
+                Spacer(Modifier.height(80.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.punchintime),
+                            contentDescription = "Punch In Time",
+//                        modifier = Modifier.size(48.dp),  // Decreased from 54.dp
+//                            tint = Color.Red
+                        )
+                        Text(text = "punch in time", fontSize = 10.sp, color = Color.Gray)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.punchouttime),
+                            contentDescription = "Punch Out Time",
+//                        modifier = Modifier.size(48.dp),  // Decreased from 54.dp
+//                            tint = Color.Red
+                        )
+                        Text(text = "punch out time", fontSize = 10.sp, color = Color.Gray)
+
+                    }
+                }
             }
 
         }
@@ -318,6 +354,74 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
     }
 }
 @Composable
+fun CustomBottomBar() {
+    // State to track the selected item
+    var selectedItem by remember { mutableStateOf("Home") }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(32.dp),
+        color = Color(0xFFDC2626)  // Red color
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Home button
+            Row(
+                modifier = Modifier
+                    .background(
+                        color = if (selectedItem == "Home") Color(0xFFB91C1C) else Color.Transparent, // Highlight selected
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable { selectedItem = "Home" }, // Change selected item on click
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Home",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "HOME",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // Grid icon
+            Icon(
+                painter = painterResource(R.drawable.grid),
+                contentDescription = "Grid",
+                tint = if (selectedItem == "Grid") Color(0xFFB91C1C) else Color.White, // Highlight selected
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { selectedItem = "Grid" } // Change selected item on click
+            )
+
+            // Calendar icon
+            Icon(
+                imageVector = Icons.Default.DateRange,
+                contentDescription = "Calendar",
+                tint = if (selectedItem == "Calendar") Color(0xFFB91C1C) else Color.White, // Highlight selected
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { selectedItem = "Calendar" } // Change selected item on click
+            )
+        }
+    }
+}
+
+@Composable
 fun PunchInCircleButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -325,11 +429,11 @@ fun PunchInCircleButton(
 ) {
     Box(
         modifier = modifier
-            .size(200.dp)
+            .size(240.dp)  // Decreased from 270.dp
             .clip(CircleShape)
             .background(Color.White)
             .border(
-                width = 25.dp,
+                width = 30.dp,  // Decreased from 34.dp
                 color = if (isEnabled) Color(0xFFE1E5E9) else Color.Gray,
                 shape = CircleShape
             ),
@@ -338,7 +442,7 @@ fun PunchInCircleButton(
         // Outer gradient ring
         Box(
             modifier = Modifier
-                .size(150.dp)
+                .size(180.dp)  // Decreased from 203.dp
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
@@ -346,7 +450,7 @@ fun PunchInCircleButton(
                             Color(0xFFF5F7F9)
                         ),
                         center = Offset.Zero,
-                        radius = 180f
+                        radius = 216f  // Decreased from 243f
                     ),
                     shape = CircleShape
                 )
@@ -356,29 +460,30 @@ fun PunchInCircleButton(
             // Inner white circle with content
             Box(
                 modifier = Modifier
-                    .size(130.dp)
+                    .size(156.dp)  // Decreased from 176.dp
                     .background(Color.White, CircleShape)
+                    .clip(CircleShape)
                     .clickable(enabled = isEnabled, onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(4.dp)
+                    modifier = Modifier.padding(5.dp)  // Decreased from 6.dp
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.punchin),
                         contentDescription = "Punch In",
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(48.dp),  // Decreased from 54.dp
                         tint = Color(0xFF4CAF50)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))  // Decreased from 10.dp
                     Text(
                         text = "PUNCH IN",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
-                            letterSpacing = 0.5.sp
+                            fontSize = 14.sp,  // Decreased from 15.sp
+                            letterSpacing = 0.6.sp  // Decreased from 0.7.sp
                         ),
                         color = Color.Black
                     )
@@ -387,6 +492,7 @@ fun PunchInCircleButton(
         }
     }
 }
+
 @Composable
 fun LocationListScreen(viewModel: ViewModel, modifier: Modifier) {
     val locations by viewModel.locations.collectAsState()
