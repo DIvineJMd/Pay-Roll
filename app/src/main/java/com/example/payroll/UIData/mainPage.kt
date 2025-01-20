@@ -30,6 +30,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -271,7 +273,9 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                     }
                 )
             }) {
-            Column(modifier = Modifier.padding(it).fillMaxSize(),
+            Column(modifier = Modifier
+                .padding(it)
+                .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top) {
                 val currentDateTime = LocalDateTime.now()
@@ -281,7 +285,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                     DateTimeFormatter.ofPattern("MMM dd, yyyy - EEEE")
                 val formattedTime = currentDateTime.format(timeFormatter)
                 val formattedDate = currentDateTime.format(dateFormatter)
-                Spacer(Modifier.height(25.dp))
+                Spacer(Modifier.height(35.dp))
                 Text(
                     text = formattedTime,
                     style = MaterialTheme.typography.titleLarge,
@@ -294,7 +298,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
                     modifier = Modifier.padding(8.dp),
                     fontSize = 13.sp
                 )
-                Spacer(Modifier.height(25.dp))
+                Spacer(Modifier.height(40.dp))
                 PunchInCircleButton({})
             }
 
@@ -326,30 +330,60 @@ fun PunchInCircleButton(
             .background(Color.White)
             .border(
                 width = 25.dp,
-                color = if (isEnabled) Color(0xFFE1E5E9) else Color.Gray, // Blue border
+                color = if (isEnabled) Color(0xFFE1E5E9) else Color.Gray,
                 shape = CircleShape
-            )
-            .clickable(enabled = isEnabled, onClick = onClick),
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // Outer gradient ring
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFE1E5E9),
+                            Color(0xFFF5F7F9)
+                        ),
+                        center = Offset.Zero,
+                        radius = 180f
+                    ),
+                    shape = CircleShape
+                )
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-//            Icon(
-//                imageVector = Icons.Default.TouchApp,
-//                contentDescription = "Punch In",
-//                modifier = Modifier.size(32.dp),
-//                tint = Color(0xFF4CAF50) // Green color for the icon
-//            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "PUNCH IN",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // Inner white circle with content
+            Box(
+                modifier = Modifier
+                    .size(130.dp)
+                    .background(Color.White, CircleShape)
+                    .clickable(enabled = isEnabled, onClick = onClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(4.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.punchin),
+                        contentDescription = "Punch In",
+                        modifier = Modifier.size(40.dp),
+                        tint = Color(0xFF4CAF50)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "PUNCH IN",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = Color.Black
+                    )
+                }
+            }
         }
     }
 }
