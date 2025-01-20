@@ -1,9 +1,16 @@
 package com.example.payroll.UIData
 
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,6 +28,7 @@ import androidx.compose.material.icons.sharp.Lock
 import androidx.compose.material.icons.twotone.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -43,23 +53,124 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.payroll.R
 import com.example.payroll.data.ViewModel
 import com.example.payroll.data.Resource
 
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginPage(
     viewModel: ViewModel, context: Context, navController: NavController
 ) {
-    Scaffold(topBar = {
-    }) {
-        var username by remember { mutableStateOf("") }
-        var password by remember { mutableStateOf("") }
-        var clicked by remember { mutableStateOf(false) }
-        val loginState by viewModel.loginState.collectAsState()
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var showBatteryDialog by remember { mutableStateOf(false) }
+    var clicked by remember { mutableStateOf(false) }
+    val loginState by viewModel.loginState.collectAsState()
+
+    // State to track permissions
+    var hasLocationPermissions by remember { mutableStateOf(false) }
+    var hasBackgroundPermission by remember { mutableStateOf(false) }
+    var hasBatteryOptimization by remember { mutableStateOf(false) }
+    var hasPermissions by remember {
+        mutableStateOf(
+            hasAllPermissions(context)
+        )
+    }
+    var isTracking by remember {
+        mutableStateOf(
+            context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+                .getBoolean("is_tracking", false)
+        )
+    }
+    // Check initial permission states
+    LaunchedEffect(Unit) {
+        checkInitialPermissions(context) { location, background, battery ->
+            hasLocationPermissions = location
+            hasBackgroundPermission = background
+            hasBatteryOptimization = battery
+        }
+    }
+
+    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasBackgroundPermission = isGranted
+        if (isGranted && !hasBatteryOptimization) {
+            showBatteryDialog = true
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val areGranted = permissions.values.all { it }
+        hasLocationPermissions = areGranted
+        if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+    }
+
+    // Request permissions on first launch
+    LaunchedEffect(Unit) {
+        requestPermissionsInSequence(
+            context,
+            locationPermissionLauncher,
+            backgroundPermissionLauncher,
+            hasLocationPermissions,
+            hasBackgroundPermission,
+            hasBatteryOptimization
+        ) {
+            showBatteryDialog = true
+        }
+    }
+
+    // Battery optimization dialog
+    if (showBatteryDialog) {
+        AlertDialog(
+            onDismissRequest = { showBatteryDialog = false },
+            title = { Text("Battery Optimization") },
+            text = { Text("For reliable location tracking, please disable battery optimization for this app.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBatteryDialog = false
+                        context.requestDisableBatteryOptimization()
+                        hasBatteryOptimization = true
+                        hasPermissions=  hasAllPermissions(context)
+                    }
+                ) {
+                    Text("DISABLE")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatteryDialog = false }) {
+                    Text("LATER")
+                }
+            }
+        )
+    }
+
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            TopAppBar(
+                navigationIcon = {},
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                title = {
+                    Text(
+                        "Pay Roll",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                })
+        }) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,6 +178,7 @@ fun LoginPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Rest of the UI code remains the same...
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -78,95 +190,99 @@ fun LoginPage(
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Image(
+                        painter = painterResource(R.drawable.companyicon),
+                        contentDescription = "Logo",
+                        modifier = Modifier
+                            .size(150.dp)
+                            .align(Alignment.CenterHorizontally)
+                    )
                     Text(
                         text = "Sign In",
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier
-                            .padding(bottom = 18.dp)
+                            .padding(top = 10.dp, bottom = 18.dp)
                             .align(Alignment.CenterHorizontally)
                     )
 
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
-//                        placeholder = ,
-                        label = { Text("User Name") },
+                    // Username Card
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = CardDefaults.cardElevation(5.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 24.dp),
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Person,
-                                contentDescription = "Email Icon",
-                                tint = MaterialTheme.colorScheme.tertiary // Set the icon color
-                            )
-                        },
-                        colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.Transparent, // Removes the background color
-                            focusedIndicatorColor = MaterialTheme.colorScheme.primary, // Hides the underline when focused
-                            unfocusedIndicatorColor = MaterialTheme.colorScheme.tertiary
-
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White
                         )
-                    )
+                    ) {
+                        OutlinedTextField(
+                            value = username,
+                            onValueChange = { username = it },
+                            label = { Text("User Name") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Transparent),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Person,
+                                    contentDescription = "Email Icon",
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            },
+                            colors = TextFieldDefaults.textFieldColors(
+                                containerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    }
 
-                    // Password input
-//                    Text(
-//                        text = buildAnnotatedString {
-//                            withStyle(style = SpanStyle(fontSize = 20.sp)) { // Increase text size
-//                                append("Password") // Add the main text
-//                            }
-//                            withStyle(
-//                                style = SpanStyle(
-//                                    color = Color.Red,
-//                                    fontSize = 20.sp
-//                                )
-//                            ) { // Red color for the asterisk
-//                                append("*")
-//                            }
-//                        },
-//                        modifier = Modifier
-//                            .padding(bottom = 8.dp)
-//                            .align(Alignment.Start)
-//                    )
-                    var passwordVisible by remember { mutableStateOf(false) } // State to track password visibility
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
+                    // Password Card
+                    var passwordVisible by remember { mutableStateOf(false) }
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = CardDefaults.cardElevation(5.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = "Password Icon",
-                                tint = MaterialTheme.colorScheme.tertiary // Set the icon color
-                            )
-                        },
-                        trailingIcon = {
-                            Icon(
-                                painter = painterResource(id = if (passwordVisible) R.drawable.visibility else R.drawable.visible),
-                                contentDescription = if (passwordVisible) "Hide Password" else "Show Password",
-                                modifier = Modifier
-                                    .size(24.dp) // Set the icon size
-                                    .clickable {
-                                        passwordVisible = !passwordVisible
-                                    }, // Toggle visibility on click
-                                tint = MaterialTheme.colorScheme.tertiary // Set the icon color
-                            )
-                        },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.Transparent, // Removes the background color
-                            focusedIndicatorColor = MaterialTheme.colorScheme.primary, // Hides the underline when focused
-                            unfocusedIndicatorColor = MaterialTheme.colorScheme.tertiary
+                            .padding(bottom = 24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White
                         )
-                    )
+                    ) {
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Password") },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = "Password Icon",
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    painter = painterResource(id = if (passwordVisible) R.drawable.visibility else R.drawable.visible),
+                                    contentDescription = if (passwordVisible) "Hide Password" else "Show Password",
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clickable { passwordVisible = !passwordVisible },
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            },
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            colors = TextFieldDefaults.textFieldColors(
+                                containerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    }
 
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // Login button
+                    // Login Button
                     Button(
                         onClick = {
                             clicked = true
@@ -179,44 +295,33 @@ fun LoginPage(
                     ) {
                         when {
                             clicked && loginState is Resource.Loading -> {
-                                // Show the loading indicator
                                 CircularProgressIndicator(
                                     strokeWidth = 2.dp,
                                     color = Color.White
                                 )
                             }
-
                             clicked && loginState is Resource.Error -> {
-                                clicked = false // Reset clicked to allow retry
-                                val errorMessage =
-                                    (loginState as? Resource.Error)?.message?.let { msg ->
-                                        // Extract the main error message
-                                        val errorRegex = """"message":"(.*?)"""".toRegex()
-                                        val matchResult = errorRegex.find(msg)
-                                        matchResult?.groups?.get(1)?.value ?: "Invalid credential"
-                                    } ?: "Invalid credential"
-
+                                clicked = false
+                                val errorMessage = (loginState as? Resource.Error)?.message?.let { msg ->
+                                    val errorRegex = """"message":"(.*?)"""".toRegex()
+                                    val matchResult = errorRegex.find(msg)
+                                    matchResult?.groups?.get(1)?.value ?: "Invalid credential"
+                                } ?: "Invalid credential"
                                 Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
                             }
-
                             clicked && loginState is Resource.Success<*> -> {
                                 val successMessage = (loginState as Resource.Success<String>).data
                                 Text(text = successMessage)
                                 navController.navigate("Main") {
-                                    popUpTo("loginPage") {
-                                        inclusive = true
-                                    } // Clear the login page from the back stack
-                                    launchSingleTop =
-                                        true // Avoid multiple instances of the same destination
+                                    popUpTo("loginPage") { inclusive = true }
+                                    launchSingleTop = true
                                 }
                                 Log.d("Success", "Login Successful")
                                 clicked = false
                             }
-
                             else -> {
-                                // Default state, show the login text and icon
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Log in", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Log in", style = MaterialTheme.typography.titleMedium)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(
                                         imageVector = Icons.Outlined.ExitToApp,
@@ -229,37 +334,7 @@ fun LoginPage(
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
-
                 }
-            }
-
-        }
-    }
-}
-
-
-@Composable
-fun LoginAlertDialog(
-    viewModel: ViewModel,
-    onDismiss: () -> Unit,
-    navController: NavController
-) {
-
-
-    Dialog(onDismissRequest = { onDismiss() }) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-
             }
         }
     }

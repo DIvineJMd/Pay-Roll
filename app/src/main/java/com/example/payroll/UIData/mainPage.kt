@@ -15,6 +15,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,23 +25,34 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.startForegroundService
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.example.payroll.Worker.startLocationTracking
+import com.example.payroll.data.ViewModel
+import com.example.payroll.Worker.LocationForegroundService
 
 
 @Composable
-fun MainPage(modifier: Modifier = Modifier) {
-    var isTracking by remember { mutableStateOf(false) }
+fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
     var showBatteryDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val workManager = WorkManager.getInstance(context)
 
     // State to track permissions
     var hasLocationPermissions by remember { mutableStateOf(false) }
     var hasBackgroundPermission by remember { mutableStateOf(false) }
     var hasBatteryOptimization by remember { mutableStateOf(false) }
-
+    var hasPermissions by remember {
+        mutableStateOf(
+            hasAllPermissions(context)
+        )
+    }
+    var isTracking by remember {
+        mutableStateOf(
+            context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+                .getBoolean("is_tracking", false)
+        )
+    }
     // Check initial permission states
     LaunchedEffect(Unit) {
         checkInitialPermissions(context) { location, background, battery ->
@@ -57,6 +70,7 @@ fun MainPage(modifier: Modifier = Modifier) {
             showBatteryDialog = true
         }
     }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -64,20 +78,6 @@ fun MainPage(modifier: Modifier = Modifier) {
         hasLocationPermissions = areGranted
         if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-    }
-
-
-
-    // Track work status
-    DisposableEffect(Unit) {
-        val workInfoLiveData = workManager.getWorkInfosByTagLiveData("location_tracking")
-        val observer = androidx.lifecycle.Observer<List<WorkInfo>> { workInfoList ->
-            isTracking = workInfoList.any { !it.state.isFinished }
-        }
-        workInfoLiveData.observeForever(observer)
-        onDispose {
-            workInfoLiveData.removeObserver(observer)
         }
     }
 
@@ -107,6 +107,7 @@ fun MainPage(modifier: Modifier = Modifier) {
                         showBatteryDialog = false
                         context.requestDisableBatteryOptimization()
                         hasBatteryOptimization = true
+                    hasPermissions=  hasAllPermissions(context)
                     }
                 ) {
                     Text("DISABLE")
@@ -120,6 +121,7 @@ fun MainPage(modifier: Modifier = Modifier) {
         )
     }
 
+
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -127,25 +129,33 @@ fun MainPage(modifier: Modifier = Modifier) {
     ) {
         Button(
             onClick = {
-                if (!isTracking) {
-                    if (hasAllPermissions(context)) {
-                        startLocationTracking(context)
-                        isTracking = true
-                    } else {
-                        requestPermissionsInSequence(
-                            context,
-                            locationPermissionLauncher,
-                            backgroundPermissionLauncher,
-                            hasLocationPermissions,
-                            hasBackgroundPermission,
-                            hasBatteryOptimization
-                        ) {
-                            showBatteryDialog = true
-                        }
+                if (hasAllPermissions(context)) {
+                    val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
+                        action = if (!isTracking) "START_TRACKING" else "STOP_TRACKING"
                     }
+
+                    if (!isTracking) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(serviceIntent)
+                        } else {
+                            context.startService(serviceIntent)
+                        }
+                    } else {
+                        context.stopService(serviceIntent)
+                    }
+
+                    isTracking = !isTracking
                 } else {
-                    stopLocationTracking(context)
-                    isTracking = false
+                    requestPermissionsInSequence(
+                        context,
+                        locationPermissionLauncher,
+                        backgroundPermissionLauncher,
+                        hasLocationPermissions,
+                        hasBackgroundPermission,
+                        hasBatteryOptimization
+                    ) {
+                        showBatteryDialog = true
+                    }
                 }
             }
         ) {
@@ -160,19 +170,42 @@ fun MainPage(modifier: Modifier = Modifier) {
             )
         }
 
-        // Permission status
-        if (!hasAllPermissions(context)) {
+        if (!hasPermissions) {
             Text(
                 "⚠️ Some permissions are missing",
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
+
+        LocationListScreen(viewModel = viewModel)
     }
 }
 
+@Composable
+fun LocationListScreen(viewModel: ViewModel) {
+    val locations by viewModel.locations.collectAsState()
+
+    LazyColumn {
+        items(locations) { location ->
+            Card(
+                modifier = Modifier.padding(5.dp),
+                elevation = CardDefaults.elevatedCardElevation(
+                    defaultElevation = 5.dp
+                )
+            ) {
+                Text(
+                    modifier = Modifier.padding(3.dp),
+                    text = "Lat: ${location.lat}, Lng: ${location.lang}, Time: ${location.timing}, Status: ${location.uploaded}"
+                )
+            }
+        }
+    }
+}
+
+
 // Permission handling functions
-private fun requestPermissionsInSequence(
+fun requestPermissionsInSequence(
     context: Context,
     locationLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
     backgroundLauncher: ManagedActivityResultLauncher<String, Boolean>,
@@ -199,7 +232,7 @@ private fun requestPermissionsInSequence(
     }
 }
 
-private fun checkInitialPermissions(
+fun checkInitialPermissions(
     context: Context,
     callback: (location: Boolean, background: Boolean, battery: Boolean) -> Unit
 ) {
@@ -229,17 +262,12 @@ private fun hasBackgroundPermission(context: Context): Boolean {
     }
 }
 
-private fun hasAllPermissions(context: Context): Boolean {
+fun hasAllPermissions(context: Context): Boolean {
     return hasLocationPermissions(context) &&
             hasBackgroundPermission(context) &&
             context.isIgnoringBatteryOptimizations()
 }
 
-private fun stopLocationTracking(context: Context) {
-    WorkManager.getInstance(context).cancelUniqueWork("LocationTrackingWork")
-}
-
-// Context extension functions
 @SuppressLint("BatteryLife")
 fun Context.requestDisableBatteryOptimization() {
     val intent = Intent().apply {
@@ -253,4 +281,3 @@ fun Context.isIgnoringBatteryOptimizations(): Boolean {
     val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
     return powerManager.isIgnoringBatteryOptimizations(packageName)
 }
-

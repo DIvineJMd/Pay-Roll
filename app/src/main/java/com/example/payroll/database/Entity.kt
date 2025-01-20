@@ -21,5 +21,6 @@ data class LocationRequest(
     @SerializedName("accId") val accId: String,
     @SerializedName("timing") val timing: String,
     @SerializedName("lat") val lat: String,
-    @SerializedName("lang") val lang: String
+    @SerializedName("lang") val lang: String,
+    val uploaded :  Boolean
 )

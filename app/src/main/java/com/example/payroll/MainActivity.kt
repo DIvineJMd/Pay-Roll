@@ -6,11 +6,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,7 +29,6 @@ import com.example.payroll.database.UserRepository
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: ViewModel by viewModels()
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalMaterial3Api::class)
@@ -36,7 +39,7 @@ class MainActivity : ComponentActivity() {
         // Initialize database and repository
         val database = UserDatabase.getDatabase(applicationContext)
 
-        val repository = UserRepository(database.userDao(),database.locationDao())
+        val repository = UserRepository(database.userDao(), database.locationDao())
 
         // Create the ViewModel using the factory
         val viewModel: ViewModel by viewModels {
@@ -53,6 +56,7 @@ class MainActivity : ComponentActivity() {
                 token = viewModel.getAuthToken(applicationContext)
                 delay(1000)
                 isTokenReady = true
+                println("Token------------>: $token")
             }
 
             // Wait until token is ready
@@ -66,30 +70,37 @@ class MainActivity : ComponentActivity() {
                 }
             } else {
                 PayRollTheme {
-                    Scaffold(
-                        topBar = {
-                            TopAppBar(title = { Text("Pay Roll", fontWeight = FontWeight.Bold) })
-                        }
-                    ) { innerPadding ->
-                        // Navigation host to manage destinations
-                        NavHost(
-                            navController = navController,
-                            startDestination = if (token.isNullOrEmpty()) "loginPage" else "Main",
-                            modifier = Modifier.padding(innerPadding)
-                        ) {
-                            // Login Page
-                            composable("loginPage") {
-                                LoginPage(
-                                    viewModel = viewModel,
-                                    context = this@MainActivity,
-                                    navController = navController
-                                )
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        val painter = painterResource(id = R.drawable.background)
+                        Image(
+                            modifier = Modifier.fillMaxSize(),
+                            painter = painter,
+                            contentDescription = "background_image",
+                            contentScale = ContentScale.Crop
+                        )
+
+                            // Navigation host to manage destinations
+                            NavHost(
+                                navController = navController,
+                                startDestination = if (token.isNullOrEmpty()) "loginPage" else "Main",
+                                modifier = Modifier.padding()
+                            ) {
+                                // Login Page
+                                composable("loginPage") {
+                                    LoginPage(
+                                        viewModel = viewModel,
+                                        context = this@MainActivity,
+                                        navController = navController
+                                    )
+                                }
+                                // Main Page
+                                composable("Main") {
+                                    MainPage(viewModel = viewModel)
+                                }
                             }
-                            // Main Page
-                            composable("Main") {
-                                MainPage()
-                            }
-                        }
+
                     }
                 }
             }

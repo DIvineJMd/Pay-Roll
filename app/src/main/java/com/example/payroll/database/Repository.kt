@@ -1,6 +1,7 @@
 package com.example.payroll.database
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 class UserRepository(
@@ -25,9 +26,8 @@ class UserRepository(
         locationDao.insertLocation(location)
     }
 
-    suspend fun getAllLocations(): List<LocationRequest> = withContext(Dispatchers.IO) {
-        locationDao.getAllLocations()
-    }
+    fun getAllLocationsFlow(): Flow<List<LocationRequest>> = locationDao.getAllLocationsFlow()
+
 
     suspend fun clearLocations() = withContext(Dispatchers.IO) {
         locationDao.deleteAllLocations()

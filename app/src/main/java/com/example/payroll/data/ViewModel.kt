@@ -12,13 +12,19 @@ import android.util.Log
 import androidx.compose.runtime.MutableState
 import com.example.payroll.database.User
 import com.example.payroll.database.UserRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 sealed class Resource<out T> {
     object Loading : Resource<Nothing>()
     data class Success<out T>(val data: T) : Resource<T>()
     data class Error(val message: String) : Resource<Nothing>()
 }
+
 class ViewModel(private val userRepository: UserRepository) : ViewModel() {
+
+    private val _locations =
+        MutableStateFlow<List<com.example.payroll.database.LocationRequest>>(emptyList())
 
     private val _loginState = MutableStateFlow<Resource<String>>(Resource.Loading)
     val loginState: StateFlow<Resource<String>> = _loginState.asStateFlow()
@@ -28,6 +34,13 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 
 
     private var authToken: String? = null
+    val locations: StateFlow<List<com.example.payroll.database.LocationRequest>> =
+        userRepository.getAllLocationsFlow()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
     fun login(username: String, password: String, context: Context) {
         _loginState.value = Resource.Loading
@@ -52,7 +65,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
                         )
 
 
-                        saveAuthToken(context, authToken!!,loginResponse.empId.toString())
+                        saveAuthToken(context, authToken!!, loginResponse.empId.toString())
 
                         _loginState.value = Resource.Success("Login Successful")
                         Log.d("LoginResult", "Login Successful")
@@ -72,7 +85,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
     }
 
-    private fun saveAuthToken(context: Context, token: String,empID:String) {
+    private fun saveAuthToken(context: Context, token: String, empID: String) {
         val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
         sharedPref.edit().apply {
             putString("auth_token", token)
@@ -84,7 +97,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
     }
 
-    fun saveLocation(request: LocationRequest,context: Context) {
+    fun saveLocation(request: LocationRequest, context: Context) {
         _Post.value = Resource.Loading
         viewModelScope.launch {
             try {
@@ -108,8 +121,33 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
     }
 
-     fun getAuthToken(context: Context): String? {
-                val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
-        return sharedPref.getString("auth_token", null)
+    suspend fun getAuthToken(context: Context): String? {
+        val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+        val data = userRepository.getUser()
+
+        // Get the expiry time
+        val expiryTime = data?.expiryTime
+
+        // Get the current time in milliseconds
+        val currentTime = System.currentTimeMillis()
+
+        // Check if the token exists
+        val authToken = sharedPref.getString("auth_token", null)
+
+        // If the token exists and has expired, remove it
+        if (expiryTime != null) {
+            if (authToken != null && expiryTime < currentTime) {
+                sharedPref.edit().remove("auth_token").apply()
+                sharedPref.edit().remove("empID").apply()
+                userRepository.clearUser()
+                return null
+            }
+        }
+        if(sharedPref.getString("empID", null) == null){
+            return null
+        }
+        return authToken
     }
+
+
 }

@@ -149,7 +149,7 @@ class LocationTrackingWorker(
 
             if (token.isNullOrEmpty() || empId.isNullOrEmpty()) {
                 Log.e(TAG, "Token or EmpID is missing. Saving locally.")
-                saveLocationLocally(createLocationRequest(location, empId ?: "unknown"))
+                saveLocationLocally(createLocationRequest(location, empId ?: "unknown"),false)
                 updateNotification("Location Saved", "Stored locally (waiting for authentication)")
                 return
             }
@@ -162,6 +162,7 @@ class LocationTrackingWorker(
                 if (response.isSuccessful) {
                     Log.d(TAG, "Location successfully saved on the server.")
                     updateNotification("Location Saved", "Location uploaded successfully!")
+                    saveLocationLocally(request,true)
                     // Try to send any pending locations while we have connectivity
                     withContext(Dispatchers.IO) {
                         if (locationDao.getLocationCount() > 0) {
@@ -189,13 +190,14 @@ class LocationTrackingWorker(
             lat = location.latitude.toString(),
             lang = location.longitude.toString(),
             timing = formattedTime,
-            accId = empId
+            accId = empId,
+
         )
     }
 
     private suspend fun handleFailedUpload(request: com.example.payroll.data.LocationRequest, error: String?) {
         Log.e(TAG, "Failed to save location: $error")
-        saveLocationLocally(request)
+        saveLocationLocally(request,false)
         val pendingCount = withContext(Dispatchers.IO) { locationDao.getLocationCount() }
         updateNotification(
             "Offline Mode",
@@ -214,7 +216,7 @@ class LocationTrackingWorker(
 
         val apiService = ApiClient.getInstance(token)
         val pendingLocations = withContext(Dispatchers.IO) {
-            locationDao.getAllLocations()
+            locationDao.getPendingLocations()
         }
 
         var successCount = 0
@@ -232,7 +234,7 @@ class LocationTrackingWorker(
                 val response = apiService.saveLocation(apiRequest).awaitResponse()
                 if (response.isSuccessful) {
                     withContext(Dispatchers.IO) {
-                        locationDao.deleteLocationById(locationRequest.id)
+                        locationDao.updateUploadedStatus(locationRequest.id,true)
                     }
                     successCount++
                     Log.d(TAG, "Successfully sent pending location: $locationRequest")
@@ -246,7 +248,7 @@ class LocationTrackingWorker(
             }
         }
 
-        if (successCount > 0 || failureCount > 0) {
+        if (successCount >= 0 || failureCount >= 0) {
             updateNotification(
                 "Sync Complete",
                 "Sent: $successCount, Failed: $failureCount, Remaining: ${pendingLocations.size - successCount}"
@@ -254,18 +256,26 @@ class LocationTrackingWorker(
         }
     }
 
-      private suspend fun saveLocationLocally(locationRequest: com.example.payroll.data.LocationRequest) {
+    private suspend fun saveLocationLocally(
+        locationRequest: com.example.payroll.data.LocationRequest,
+        uploaded: Boolean
+    ) {
         withContext(Dispatchers.IO) {
+
+            // Insert the location request into the local database
             locationDao.insertLocation(
                 com.example.payroll.database.LocationRequest(
                     lat = locationRequest.lat,
                     lang = locationRequest.lang,
                     timing = locationRequest.timing,
-                    accId = locationRequest.accId
+                    accId = locationRequest.accId,
+                    uploaded = uploaded
                 )
             )
+
         }
     }
+
     private fun acquireWakeLock() {
         val powerManager =
             applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -351,7 +361,7 @@ fun startLocationTracking(context: Context) {
     // Enqueue the work with KEEP policy to prevent accidental cancellation
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "LocationTrackingWork",
-        ExistingPeriodicWorkPolicy.UPDATE,
+        ExistingPeriodicWorkPolicy.KEEP,
         workRequest
     )
 
