@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.payroll.UIData.CameraCapture
 import com.example.payroll.UIData.LoginPage
 import com.example.payroll.UIData.MainPage
 import com.example.payroll.ui.theme.PayRollTheme
@@ -100,7 +101,14 @@ class MainActivity : ComponentActivity() {
                                 }
                                 // Main Page
                                 composable("Main") {
-                                    MainPage(viewModel = viewModel)
+                                    MainPage(viewModel = viewModel,
+                                        navHostController = navController
+                                    )
+                                }
+                                composable("Capture") {
+                                    CameraCapture().Update_attendance(
+                                        viewModel
+                                    )
                                 }
                             }
 

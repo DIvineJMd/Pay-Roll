@@ -15,6 +15,10 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +26,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,15 +59,21 @@ import com.example.payroll.Worker.startLocationTracking
 import com.example.payroll.data.ViewModel
 import com.example.payroll.Worker.LocationForegroundService
 import com.example.payroll.database.User
+import kotlinx.coroutines.coroutineScope
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
+fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostController: NavController) {
+    val pagerState = rememberPagerState(pageCount = { 3 })
     var showBatteryDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     // State to track permissions
@@ -72,12 +85,16 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
             hasAllPermissions(context)
         )
     }
+    val coroutineScope = rememberCoroutineScope()
+
     var isTracking by remember {
         mutableStateOf(
             context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
                 .getBoolean("is_tracking", false)
         )
     }
+    var selectedItem by remember { mutableStateOf(0) }
+
     val user by viewModel.userData.collectAsState()
     // Check initial permission states
     LaunchedEffect(Unit) {
@@ -187,11 +204,6 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
     }
 
 
-    Column(
-        modifier = modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
 //        Button(
 //            onClick = {
 //                if (hasAllPermissions(context)) {
@@ -231,192 +243,281 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel) {
 //            Text(if (isTracking) "Stop Tracking" else "Start Tracking")
 //        }
 
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    navigationIcon = {},
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    ),
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Profile icon
-                            Image(
-                                painter = painterResource(id = R.drawable.profile), // Replace with your profile icon resource
-                                contentDescription = "Profile Icon",
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            TopAppBar(
+                navigationIcon = {},
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.profile),
+                            contentDescription = "Profile Icon",
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Hey, ${user?.username ?: "Guest"}",
+                                style = MaterialTheme.typography.titleMedium,
                             )
-                            Spacer(modifier = Modifier.width(10.dp)) // Space between icon and text
-                            Column {
-                                Text(
-                                    text = "Hey, ${user?.username ?: "Guest"}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    text = "${user?.empId ?: ""}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color.Gray
-                                )
+                            Text(
+                                text = "${user?.empId ?: ""}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* Handle settings click */ }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.bell),
+                            contentDescription = "Notification",
+                            tint = Color.Red
+                        )
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            CustomBottomBar(
+                selectedItem = selectedItem,
+                onItemSelected = { index ->
+                    selectedItem = index
+                    coroutineScope.launch{
+                        pagerState.animateScrollToPage(
+                            index
+                        )
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            val currentDateTime = LocalDateTime.now()
+                            val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a")
+                            val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy - EEEE")
+                            val formattedTime = currentDateTime.format(timeFormatter)
+                            val formattedDate = currentDateTime.format(dateFormatter)
+
+                            Spacer(Modifier.height(35.dp))
+                            Text(
+                                text = formattedTime,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontSize = 45.sp
+                            )
+                            Text(
+                                text = formattedDate,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(8.dp),
+                                fontSize = 13.sp
+                            )
+                            Spacer(Modifier.height(40.dp))
+                            PunchInCircleButton({navHostController.navigate("Capture")})
+                            Spacer(Modifier.height(80.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Image(
+                                        painter = painterResource(R.drawable.punchintime),
+                                        contentDescription = "Punch In Time",
+                                    )
+                                    Text(text = "punch in time", fontSize = 10.sp, color = Color.Gray)
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Image(
+                                        painter = painterResource(R.drawable.punchouttime),
+                                        contentDescription = "Punch Out Time",
+                                    )
+                                    Text(text = "punch out time", fontSize = 10.sp, color = Color.Gray)
+                                }
                             }
                         }
-                    },
-                    actions = {
-                        IconButton(onClick = { /* Handle settings click */ }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.bell),
-                                contentDescription = "Settings",
-                                tint = Color.Red
-                            )
-                        }
-                    },
-
-                    )
-            },
-            bottomBar = {
-                CustomBottomBar()
-            }
-            ) {
-            Column(
-                modifier = Modifier
-                    .padding(it)
-                    .fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top
-            ) {
-                val currentDateTime = LocalDateTime.now()
-                val timeFormatter =
-                    DateTimeFormatter.ofPattern("hh:mm a")
-                val dateFormatter =
-                    DateTimeFormatter.ofPattern("MMM dd, yyyy - EEEE")
-                val formattedTime = currentDateTime.format(timeFormatter)
-                val formattedDate = currentDateTime.format(dateFormatter)
-                Spacer(Modifier.height(35.dp))
-                Text(
-                    text = formattedTime,
-                    style = MaterialTheme.typography.titleLarge,
-
-                    fontSize = 45.sp
-                )
-                Text(
-                    text = formattedDate,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(8.dp),
-                    fontSize = 13.sp
-                )
-                Spacer(Modifier.height(40.dp))
-                PunchInCircleButton({})
-                Spacer(Modifier.height(80.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(
-                            painter = painterResource(R.drawable.punchintime),
-                            contentDescription = "Punch In Time",
-//                        modifier = Modifier.size(48.dp),  // Decreased from 54.dp
-//                            tint = Color.Red
-                        )
-                        Text(text = "punch in time", fontSize = 10.sp, color = Color.Gray)
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(
-                            painter = painterResource(R.drawable.punchouttime),
-                            contentDescription = "Punch Out Time",
-//                        modifier = Modifier.size(48.dp),  // Decreased from 54.dp
-//                            tint = Color.Red
-                        )
-                        Text(text = "punch out time", fontSize = 10.sp, color = Color.Gray)
-
+                    1 -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Reports Page")
+                        }
+                    }
+                    2 -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Calendar Page")
+                        }
                     }
                 }
             }
-
         }
+
+        if (showBatteryDialog) {
+            AlertDialog(
+                onDismissRequest = { showBatteryDialog = false },
+                title = { Text("Battery Optimization") },
+                text = { Text("For reliable location tracking, please disable battery optimization for this app.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showBatteryDialog = false
+                            context.requestDisableBatteryOptimization()
+                            hasBatteryOptimization = true
+                            hasPermissions = hasAllPermissions(context)
+                        }
+                    ) {
+                        Text("DISABLE")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatteryDialog = false }) {
+                        Text("LATER")
+                    }
+                }
+            )
+        }
+    }
+}
 
 //        LocationListScreen(viewModel = viewModel,modifier.padding(it))
 
-        if (!hasPermissions) {
-            Text(
-                "⚠️ Some permissions are missing",
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-
-
-    }
-}
 @Composable
-fun CustomBottomBar() {
-    // State to track the selected item
-    var selectedItem by remember { mutableStateOf("Home") }
-
+fun CustomBottomBar(
+    selectedItem: Int,
+    onItemSelected: (Int) -> Unit
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(32.dp),
-        color = Color(0xFFDC2626)  // Red color
+        color = Color(0xFFDC2626)
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Home button
-            Row(
-                modifier = Modifier
-                    .background(
-                        color = if (selectedItem == "Home") Color(0xFFB91C1C) else Color.Transparent, // Highlight selected
-                        shape = RoundedCornerShape(24.dp)
+            AnimatedButton(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Home",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clickable { selectedItem = "Home" }, // Change selected item on click
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Home",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
+                },
+                text = "HOME",
+                selected = selectedItem == 0,
+                onClick = { onItemSelected(0) }
+            )
+
+            // Grid button
+            AnimatedButton(
+                icon = {
+                    Icon(
+                        painter = painterResource(R.drawable.grid),
+                        contentDescription = "Grid",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                text = "GRID",
+                selected = selectedItem == 1,
+                onClick = { onItemSelected(1) }
+            )
+
+            // Calendar button
+            AnimatedButton(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Calendar",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                text = "CALENDAR",
+                selected = selectedItem == 2,
+                onClick = { onItemSelected(2) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimatedButton(
+    icon: @Composable () -> Unit,
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val transition = updateTransition(selected, label = "selected")
+
+    val buttonColor by transition.animateColor(label = "backgroundColor") { isSelected ->
+        if (isSelected) Color(0xFFB91C1C) else Color.Transparent
+    }
+
+    val textWidth by transition.animateFloat(label = "textWidth") { isSelected ->
+        if (isSelected) 1f else 0f
+    }
+
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = buttonColor,
+            contentColor = Color.White
+        ),
+        contentPadding = PaddingValues(
+            horizontal = if (selected) 16.dp else 12.dp,
+            vertical = 8.dp
+        ),
+        shape = RoundedCornerShape(24.dp),
+        elevation = null,
+        modifier = Modifier.animateContentSize()
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.wrapContentWidth()
+        ) {
+            icon()
+            if (textWidth > 0f) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "HOME",
+                    text = text,
                     color = Color.White,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = textWidth
+                    }
                 )
             }
-
-            // Grid icon
-            Icon(
-                painter = painterResource(R.drawable.grid),
-                contentDescription = "Grid",
-                tint = if (selectedItem == "Grid") Color(0xFFB91C1C) else Color.White, // Highlight selected
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { selectedItem = "Grid" } // Change selected item on click
-            )
-
-            // Calendar icon
-            Icon(
-                imageVector = Icons.Default.DateRange,
-                contentDescription = "Calendar",
-                tint = if (selectedItem == "Calendar") Color(0xFFB91C1C) else Color.White, // Highlight selected
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { selectedItem = "Calendar" } // Change selected item on click
-            )
         }
     }
 }

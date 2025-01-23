@@ -37,13 +37,15 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+
     }
 }
 
 dependencies {
     implementation( libs.androidx.work.runtime.ktx.v281)
     implementation( libs.play.services.location.v2101)
-    // Retrofit
+    implementation(libs.coil.kt.coil.compose)
     implementation (libs.retrofit)
 // Gson Converter for Retrofit
     implementation (libs.converter.gson)

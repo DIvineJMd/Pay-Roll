@@ -12,8 +12,14 @@ import android.util.Log
 import androidx.compose.runtime.MutableState
 import com.example.payroll.database.User
 import com.example.payroll.database.UserRepository
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 
 sealed class Resource<out T> {
     object Loading : Resource<Nothing>()
@@ -22,7 +28,8 @@ sealed class Resource<out T> {
 }
 
 class ViewModel(private val userRepository: UserRepository) : ViewModel() {
-
+    private val _attendanceState = MutableStateFlow<Resource<String>>(Resource.Loading)
+    val attendanceState: StateFlow<Resource<String>> = _attendanceState.asStateFlow()
     private val _locations =
         MutableStateFlow<List<com.example.payroll.database.LocationRequest>>(emptyList())
 
@@ -97,6 +104,52 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 //            apply()
 //        }
 //    }
+fun saveAttendance(request: AttendanceRequest, imageFile: File?, context: Context) {
+    _attendanceState.value = Resource.Loading
+    viewModelScope.launch {
+        try {
+            val token = getAuthToken(context)
+            if (token.isNullOrEmpty()) {
+                _attendanceState.value = Resource.Error("Token is missing. Please login again.")
+                return@launch
+            }
+
+            // Convert the request to JSON
+            val gson = Gson()
+            val jsonString = gson.toJson(request)
+            val dataRequestBody = jsonString.toRequestBody("text/plain".toMediaType())
+
+            // Convert the image file
+            val imagePart = imageFile?.let {
+                MultipartBody.Part.createFormData(
+                    "image",
+                    it.name,
+                    it.asRequestBody("image/jpg".toMediaType())
+                )
+            }
+            println("dataRequestBody = $dataRequestBody")
+            // Call the API
+            val apiService = ApiClient.getInstance(token)
+            val response = imagePart?.let {
+                apiService.saveAttendance(dataRequestBody,
+                    it
+                ).awaitResponse()
+            }
+
+            if (response != null) {
+                if (response.isSuccessful) {
+                    _attendanceState.value = Resource.Success("Attendance marked successfully!")
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    _attendanceState.value = Resource.Error("Failed to mark attendance: $errorBody")
+                }
+            }
+        } catch (e: Exception) {
+            _attendanceState.value = Resource.Error("Exception: ${e.message}")
+        }
+    }
+}
+
 
     fun saveLocation(request: LocationRequest, context: Context) {
         _Post.value = Resource.Loading

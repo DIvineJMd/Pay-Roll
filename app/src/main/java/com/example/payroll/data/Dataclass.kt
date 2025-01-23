@@ -1,4 +1,5 @@
 package com.example.payroll.data
+
 import com.google.gson.annotations.SerializedName
 
 data class LoginRequest(val userName: String, val password: String)
@@ -10,6 +11,7 @@ data class LoginResponse(
     @SerializedName("username") val username: String,
     @SerializedName("token") val token: String
 )
+
 data class LocationRequest(
     @SerializedName("accId") val accId: String,
     @SerializedName("timing") val timing: String,
@@ -23,4 +25,12 @@ data class LocationResponse(
     @SerializedName("timing") val timing: String,
     @SerializedName("lat") val lat: String,
     @SerializedName("lang") val lang: String
+)
+
+data class AttendanceRequest(
+    val status: String,
+    val transDate: String,
+    val inTime: String,
+    val lat: String,
+    val lang: String
 )
