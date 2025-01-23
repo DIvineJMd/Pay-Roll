@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
         // Initialize database and repository
         val database = UserDatabase.getDatabase(applicationContext)
 
-        val repository = UserRepository(database.userDao(), database.locationDao())
+        val repository = UserRepository(database.userDao(), database.locationDao(),database.attendanceDao())
 
         // Create the ViewModel using the factory
         val viewModel: ViewModel by viewModels {
@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("Capture") {
                                     CameraCapture().Update_attendance(
-                                        viewModel
+                                        viewModel,navController
                                     )
                                 }
                             }

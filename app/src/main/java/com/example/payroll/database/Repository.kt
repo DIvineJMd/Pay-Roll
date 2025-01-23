@@ -6,7 +6,8 @@ import kotlinx.coroutines.withContext
 
 class UserRepository(
     private val userDao: UserDao,
-    private val locationDao: LocationDao
+    private val locationDao: LocationDao,
+    private val attendanceDao:AttendanceDao
 ) {
     // User operations
     suspend fun saveUser(user: User) = withContext(Dispatchers.IO) {
@@ -38,4 +39,21 @@ class UserRepository(
         userDao.clearUser()
         locationDao.deleteAllLocations()
     }
+
+
+    suspend fun saveAttendance(attendanceRequest: AttendanceRequest) = withContext(Dispatchers.IO) {
+        attendanceDao.insertOrUpdateAttendance(attendanceRequest)
+    }
+
+    suspend fun getAttendance(): AttendanceRequest? = withContext(Dispatchers.IO) {
+        attendanceDao.getAttendanceData()
+    }
+
+    suspend fun clearAttendance() = withContext(Dispatchers.IO) {
+        attendanceDao.ClearAttendanceRequest()
+    }
+    suspend fun updateOuttime(id:Int,Outtime:String)= withContext(Dispatchers.IO) {
+        attendanceDao.updateOutTime(id, outTime = Outtime)
+    }
+
 }

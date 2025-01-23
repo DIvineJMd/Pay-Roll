@@ -40,4 +40,18 @@ interface LocationDao {
     @Query("UPDATE location_requests SET uploaded = :status WHERE id = :id")
     suspend fun updateUploadedStatus(id: Int, status: Boolean)
 }
+@Dao
+interface AttendanceDao{
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateAttendance(attendanceRequest: AttendanceRequest)
 
+    @Query("SELECT * FROM Attendance_Data LIMIT 1")
+    suspend fun getAttendanceData(): AttendanceRequest?
+
+    @Query("DELETE FROM Attendance_Data")
+    suspend fun ClearAttendanceRequest()
+
+    @Query("UPDATE Attendance_Data SET outTime = :outTime WHERE id = :id")
+    suspend fun updateOutTime(id: Int, outTime: String)
+
+}

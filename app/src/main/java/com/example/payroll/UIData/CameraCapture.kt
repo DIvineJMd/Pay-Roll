@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -61,12 +62,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.navigation.NavController
 import coil.annotation.ExperimentalCoilApi
 import coil.compose.rememberImagePainter
 import com.example.payroll.BuildConfig
-import com.example.payroll.data.AttendanceRequest
+import com.example.payroll.data.AttendanceRequest_api
 import com.example.payroll.data.Resource
 import com.example.payroll.data.ViewModel
+import com.example.payroll.database.AttendanceRequest
 import kotlinx.coroutines.delay
 import java.io.File
 import java.io.IOException
@@ -78,7 +81,7 @@ class CameraCapture {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "SimpleDateFormat")
     @OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class)
     @Composable
-    fun Update_attendance(viewModel: ViewModel) {
+    fun Update_attendance(viewModel: ViewModel,navController: NavController) {
         val context = LocalContext.current
         val file = context.createImageFile()
         var uri = FileProvider.getUriForFile(
@@ -287,12 +290,12 @@ class CameraCapture {
                                     else -> ""
                                 }
 
-                                val requestData = AttendanceRequest(
+                                val requestData = AttendanceRequest_api(
                                     status = attendanceStatus,
                                     transDate = dateFormat.format(currentDate),
                                     inTime = timeFormat.format(currentDate),
                                     lat = it.latitude.toString(),
-                                    lang = it.longitude.toString()
+                                    lang = it.longitude.toString(),
                                 )
 
                                 if (photoFile == null) {
@@ -331,7 +334,8 @@ class CameraCapture {
                                 (attendanceState as Resource.Success<String>).data,
                                 Toast.LENGTH_SHORT
                             ).show()
-                            delay(1000)
+                            viewModel.resetloader()
+                            navController.popBackStack("Capture", inclusive = true)
                         }
 
                         is Resource.Error -> {
@@ -340,17 +344,17 @@ class CameraCapture {
                                 (attendanceState as Resource.Error).message,
                                 Toast.LENGTH_SHORT
                             ).show()
-                            println("${(attendanceState as Resource.Error).message}")
+                            println((attendanceState as Resource.Error).message)
+                            showLoadingDialog = false
                         }
 
                         else -> {}
                     }
                 }
                 if (showLoadingDialog) {
-                    AlertDialog(
-                        onDismissRequest = {
-                            showLoadingDialog = false
-                        },
+                    BasicAlertDialog(onDismissRequest = {
+                        showLoadingDialog = false
+                    },
                         content = {
                             Column(
                                 modifier = Modifier
@@ -360,10 +364,6 @@ class CameraCapture {
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 CircularProgressIndicator(color = Color(0xFFDC2626))
-                                Text(
-                                    text = "Marking Attendance...",
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
                             }
                         }
                     )

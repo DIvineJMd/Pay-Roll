@@ -1,5 +1,7 @@
 package com.example.payroll.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
 data class LoginRequest(val userName: String, val password: String)
@@ -26,11 +28,17 @@ data class LocationResponse(
     @SerializedName("lat") val lat: String,
     @SerializedName("lang") val lang: String
 )
-
-data class AttendanceRequest(
+data class AttendanceRequest_api(
     val status: String,
     val transDate: String,
     val inTime: String,
     val lat: String,
-    val lang: String
+    val lang: String,
+    )
+data class OutData(
+    val accId: Int,
+    val transDate: String,
+    val outTime: String,
+    val remark: String
 )
+

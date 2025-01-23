@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -64,15 +65,28 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.shadow
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import com.example.payroll.data.OutData
+import com.example.payroll.data.Resource
+import com.example.payroll.database.AttendanceRequest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
 @Composable
-fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostController: NavController) {
+fun MainPage(
+    modifier: Modifier = Modifier,
+    viewModel: ViewModel,
+    navHostController: NavController
+) {
+    var showBottomSheet by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState(pageCount = { 3 })
     var showBatteryDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -86,7 +100,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostControll
         )
     }
     val coroutineScope = rememberCoroutineScope()
-
+    var attendanceState by remember { mutableStateOf<AttendanceRequest?>(null) }
     var isTracking by remember {
         mutableStateOf(
             context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
@@ -107,6 +121,12 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostControll
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
     }
+    LaunchedEffect(Unit ) {
+        attendanceState = viewModel.getAttedance()
+    }
+    LaunchedEffect(showBottomSheet ) {
+        attendanceState = viewModel.getAttedance()
+    }
     val backgroundPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -115,7 +135,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostControll
             showBatteryDialog = true
         }
     }
-
+    var remark by remember { mutableStateOf("") }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -292,7 +312,7 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostControll
                 selectedItem = selectedItem,
                 onItemSelected = { index ->
                     selectedItem = index
-                    coroutineScope.launch{
+                    coroutineScope.launch {
                         pagerState.animateScrollToPage(
                             index
                         )
@@ -336,7 +356,16 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostControll
                                 fontSize = 13.sp
                             )
                             Spacer(Modifier.height(40.dp))
-                            PunchInCircleButton({navHostController.navigate("Capture")})
+                            PunchInCircleButton(
+                                {
+                                    if ((attendanceState?.inTime.isNullOrEmpty() && attendanceState?.outTime.isNullOrEmpty()) || (attendanceState?.inTime?.isNotEmpty() == true && attendanceState?.outTime?.isNotEmpty() == true)) {
+                                        navHostController.navigate("Capture")
+                                    } else {
+                                        showBottomSheet = true
+                                    }
+                                },
+                                InPunch = (attendanceState?.inTime.isNullOrEmpty() && attendanceState?.outTime.isNullOrEmpty()) || (attendanceState?.inTime?.isNotEmpty() == true && attendanceState?.outTime?.isNotEmpty() == true)
+                            )
                             Spacer(Modifier.height(80.dp))
 
                             Row(
@@ -348,32 +377,164 @@ fun MainPage(modifier: Modifier = Modifier, viewModel: ViewModel,navHostControll
                                         painter = painterResource(R.drawable.punchintime),
                                         contentDescription = "Punch In Time",
                                     )
-                                    Text(text = "punch in time", fontSize = 10.sp, color = Color.Gray)
+                                    attendanceState?.let {
+                                        Text(
+                                            text = it.inTime,
+//                                            fontSize = 20.sp,
+                                            style = MaterialTheme.typography.titleSmall
+                                        )
+                                    }
+                                    Text(
+                                        text = "punch in time",
+                                        fontSize = 10.sp,
+                                        color = Color.Gray
+                                    )
+
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Image(
                                         painter = painterResource(R.drawable.punchouttime),
                                         contentDescription = "Punch Out Time",
                                     )
-                                    Text(text = "punch out time", fontSize = 10.sp, color = Color.Gray)
+                                    attendanceState?.let {
+                                        it.outTime?.let { it1 ->
+                                            Text(
+                                                text = it1,
+                                                //                                            fontSize = 20.sp,
+                                                style = MaterialTheme.typography.titleSmall
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "punch out time",
+                                        fontSize = 10.sp,
+                                        color = Color.Gray
+                                    )
                                 }
                             }
                         }
                     }
+
                     1 -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text("Reports Page")
                         }
                     }
+
                     2 -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text("Calendar Page")
                         }
                     }
                 }
             }
         }
+        val currentDate = Date()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val sheetState = rememberModalBottomSheetState()
+        val scope = rememberCoroutineScope()
+        var isLoading by remember { mutableStateOf(false) }
+        val outloader by viewModel.outloader.collectAsState()
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showBottomSheet = false },
+                sheetState = sheetState,
 
+                ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+
+                    TextField(
+                        value = remark,
+                        onValueChange = { remark = it },
+                        modifier = Modifier
+                            .fillMaxWidth().padding(5.dp)
+                            .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
+                            .background(Color.White, RoundedCornerShape(12.dp)),
+                        placeholder = { Text("Remark (If Any)", color = Color.Gray) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        maxLines = 2,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    val transDate = dateFormat.format(currentDate)
+                    val outTime = dateTimeFormat.format(currentDate)
+                    SlideToUnlock(
+                        modifier = Modifier.padding(5.dp),
+                        isLoading = isLoading,
+                        onUnlockRequested = {
+                            viewModel.userData.value?.empId?.let {
+                                OutData(
+                                    accId = it,
+                                    transDate = transDate,
+                                    outTime = outTime,
+                                    remark = remark
+                                )
+                            }?.let {
+                                viewModel.punchOut(
+                                    outData = it,
+                                    context
+                                )
+                            }
+                        },
+                    )
+                    when (outloader) {
+                        is Resource.Error -> {
+                            Toast.makeText(
+                                context,
+                                (outloader as Resource.Error).message,
+                                Toast.LENGTH_SHORT
+                            )
+                                .show()
+                        }
+
+                        is Resource.Loading -> {
+
+                        }
+
+                        is Resource.Success -> {
+
+                            Toast.makeText(context, "Punch Out Successfully", Toast.LENGTH_SHORT)
+                                .show()
+
+                            val currentDate = Date()
+
+                            attendanceState?.let {
+                                viewModel.putOuttime(
+                                    id = it.id,
+                                    outtime = dateFormat.format(currentDate)
+                                )
+                            }
+                            scope.launch { sheetState.hide()
+
+                                }.invokeOnCompletion {
+                                if (!sheetState.isVisible) {
+                                    showBottomSheet = false
+                                }
+                                viewModel.resetloader()
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
         if (showBatteryDialog) {
             AlertDialog(
                 onDismissRequest = { showBatteryDialog = false },
@@ -451,7 +612,7 @@ fun CustomBottomBar(
                 onClick = { onItemSelected(1) }
             )
 
-            // Calendar button
+            // Calendar button //
             AnimatedButton(
                 icon = {
                     Icon(
@@ -526,7 +687,8 @@ private fun AnimatedButton(
 fun PunchInCircleButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isEnabled: Boolean = true
+    isEnabled: Boolean = true,
+    InPunch: Boolean
 ) {
     Box(
         modifier = modifier
@@ -576,11 +738,11 @@ fun PunchInCircleButton(
                         painter = painterResource(R.drawable.punchin),
                         contentDescription = "Punch In",
                         modifier = Modifier.size(48.dp),  // Decreased from 54.dp
-                        tint = Color(0xFF4CAF50)
+                        tint = if (InPunch) Color(0xFF4CAF50) else Color(0xFFB91C1C)
                     )
                     Spacer(modifier = Modifier.height(8.dp))  // Decreased from 10.dp
                     Text(
-                        text = "PUNCH IN",
+                        text = if (InPunch) "PUNCH IN" else "PUNCH OUT",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp,  // Decreased from 15.sp

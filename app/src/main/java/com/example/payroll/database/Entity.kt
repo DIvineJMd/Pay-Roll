@@ -24,3 +24,13 @@ data class LocationRequest(
     @SerializedName("lang") val lang: String,
     val uploaded :  Boolean
 )
+@Entity(tableName = "Attendance_Data")
+data class AttendanceRequest(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,  // Auto-generated primary key
+    val status: String,
+    val transDate: String,
+    val inTime: String,
+    val lat: String,
+    val lang: String,
+    val outTime:String?
+)

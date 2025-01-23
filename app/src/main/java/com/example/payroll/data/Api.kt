@@ -1,6 +1,7 @@
 package com.example.payroll.data
 
 
+import com.example.payroll.database.AttendanceRequest
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -12,6 +13,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Query
 
@@ -27,9 +29,13 @@ interface ApiService {
     @Multipart
     @POST("attendance/save")
     fun saveAttendance(
-        @Part("data") attendanceRequest: RequestBody,
+        @Part("data") attendanceRequest: AttendanceRequest_api,
         @Part image: MultipartBody.Part
     ): Call<Void>
+
+    @PUT("attendance/update-outtime")
+    fun outTime(@Body outData: OutData): Call<Void>
+
 }
 
 

@@ -10,16 +10,21 @@ import retrofit2.awaitResponse
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.MutableState
+import com.example.payroll.database.AttendanceRequest
 import com.example.payroll.database.User
 import com.example.payroll.database.UserRepository
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 import java.io.File
+import java.io.IOException
 
 sealed class Resource<out T> {
     object Loading : Resource<Nothing>()
@@ -30,6 +35,8 @@ sealed class Resource<out T> {
 class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     private val _attendanceState = MutableStateFlow<Resource<String>>(Resource.Loading)
     val attendanceState: StateFlow<Resource<String>> = _attendanceState.asStateFlow()
+    private val _outloader = MutableStateFlow<Resource<String>>(Resource.Loading)
+    val outloader: StateFlow<Resource<String>> = _outloader.asStateFlow()
     private val _locations =
         MutableStateFlow<List<com.example.payroll.database.LocationRequest>>(emptyList())
 
@@ -40,7 +47,6 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     val post: StateFlow<Resource<String>> = _Post.asStateFlow()
     private val _userData = MutableStateFlow<User?>(null)
     val userData: StateFlow<User?> = _userData
-
     private var authToken: String? = null
     val locations: StateFlow<List<com.example.payroll.database.LocationRequest>> =
         userRepository.getAllLocationsFlow()
@@ -77,6 +83,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 
                         _loginState.value = Resource.Success("Login Successful")
                         Log.d("LoginResult", "Login Successful")
+
                     } else {
                         _loginState.value = Resource.Error("Login failed: Missing token")
                         Log.d("LoginResult", "Login failed: Missing token")
@@ -92,19 +99,63 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
             }
         }
     }
+    fun resetloader(){
+        _attendanceState.value=Resource.Loading
+        _outloader.value=Resource.Loading
+    }
 
-//    private fun saveAuthToken(context: Context, token: String, empID: String) {
-//        val sharedPref = context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
-//        sharedPref.edit().apply {
-//            putString("auth_token", token)
-//            apply()
-//        }
-//        sharedPref.edit().apply {
-//            putString("empID", empID)
-//            apply()
-//        }
-//    }
-fun saveAttendance(request: AttendanceRequest, imageFile: File?, context: Context) {
+    fun punchOut(outData: OutData, context: Context) {
+        viewModelScope.launch {
+            try {
+                _attendanceState.value = Resource.Loading
+                val token = getAuthToken(context)
+                if (token.isNullOrEmpty()) {
+                    _outloader.value = Resource.Error("Token is missing. Please login again.")
+                    return@launch
+                }
+
+                val apiService = ApiClient.getInstance(token)
+                println("Token: $token")
+
+                // Perform the network call off the main thread
+                withContext(Dispatchers.IO) {
+                    val response = apiService.outTime(outData).execute()
+
+                    // Handle API response on the main thread after completion
+                    withContext(Dispatchers.Main) {
+                        if (response.isSuccessful) {
+                            _outloader.value = Resource.Success("Out time updated successfully.")
+                        } else {
+                            val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                            val responseCode = response.code()
+                            val headers = response.headers()
+
+                            println("Error Response Code: $responseCode")
+                            println("Error Response Body: $errorBody")
+                            println("Response Headers: $headers")
+
+                            _outloader.value = Resource.Error("Failed to update out time. Error: $errorBody")
+                        }
+                    }
+                }
+            } catch (e: HttpException) {
+                _outloader.value = Resource.Error("HTTP error occurred: ${e.message()}")
+                e.printStackTrace()  // Prints full stack trace for better debugging
+                println("HTTP Error: ${e.message()}")
+            } catch (e: IOException) {
+                _outloader.value = Resource.Error("Network error occurred: ${e.message}")
+                e.printStackTrace()  // Prints full stack trace for better debugging
+                println("IO Error: ${e.message}")
+            } catch (e: Exception) {
+                _outloader.value = Resource.Error("An unexpected error occurred: ${e.message}")
+                e.printStackTrace()  // Prints full stack trace for better debugging
+                println("Unexpected Error: ${e.message}")
+            }
+        }
+    }
+
+
+    fun saveAttendance(request: AttendanceRequest_api, imageFile: File?, context: Context) {
     _attendanceState.value = Resource.Loading
     viewModelScope.launch {
         try {
@@ -114,31 +165,26 @@ fun saveAttendance(request: AttendanceRequest, imageFile: File?, context: Contex
                 return@launch
             }
 
-            // Convert the request to JSON
-            val gson = Gson()
-            val jsonString = gson.toJson(request)
-            val dataRequestBody = jsonString.toRequestBody("text/plain".toMediaType())
-
-            // Convert the image file
-            val imagePart = imageFile?.let {
-                MultipartBody.Part.createFormData(
-                    "image",
-                    it.name,
-                    it.asRequestBody("image/jpg".toMediaType())
-                )
+            val imagePart = imageFile?.let{
+                MultipartBody.Part.createFormData("image",it.name,it.asRequestBody("image/*".toMediaType()))
             }
-            println("dataRequestBody = $dataRequestBody")
             // Call the API
             val apiService = ApiClient.getInstance(token)
-            val response = imagePart?.let {
-                apiService.saveAttendance(dataRequestBody,
-                    it
-                ).awaitResponse()
-            }
+            val response = imagePart?.let { apiService.saveAttendance(request, it).awaitResponse() }
 
             if (response != null) {
                 if (response.isSuccessful) {
                     _attendanceState.value = Resource.Success("Attendance marked successfully!")
+                    userRepository.saveAttendance(attendanceRequest = AttendanceRequest(
+                        id = 1,
+                        status = request.status,
+                        transDate = request.transDate,
+                        inTime = request.inTime,
+                        lat=request.lat,
+                        lang = request.lang,
+                        outTime = ""
+                    ))
+
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown error"
                     _attendanceState.value = Resource.Error("Failed to mark attendance: $errorBody")
@@ -149,8 +195,12 @@ fun saveAttendance(request: AttendanceRequest, imageFile: File?, context: Contex
         }
     }
 }
-
-
+    suspend fun getAttedance(): AttendanceRequest? {
+        return userRepository.getAttendance()
+    }
+     fun putOuttime(id:Int,outtime:String){
+         viewModelScope.launch{ userRepository.updateOuttime(id, outtime) }
+    }
     fun saveLocation(request: LocationRequest, context: Context) {
         _Post.value = Resource.Loading
         viewModelScope.launch {

@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.payroll"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -46,9 +46,12 @@ dependencies {
     implementation( libs.androidx.work.runtime.ktx.v281)
     implementation( libs.play.services.location.v2101)
     implementation(libs.coil.kt.coil.compose)
+    // Retrofit
     implementation (libs.retrofit)
-// Gson Converter for Retrofit
+// Gson converter
     implementation (libs.converter.gson)
+    implementation(libs.androidx.constraintlayout.compose.android)
+    implementation(libs.androidx.compose.material)
     val room_version = "2.6.1"
     implementation (libs.androidx.room.runtime)
     implementation (libs.androidx.room.ktx) // Add this line for Kotlin extensions
