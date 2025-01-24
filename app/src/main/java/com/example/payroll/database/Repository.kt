@@ -38,6 +38,7 @@ class UserRepository(
     suspend fun clearAllData() = withContext(Dispatchers.IO) {
         userDao.clearUser()
         locationDao.deleteAllLocations()
+        attendanceDao.ClearAttendanceRequest()
     }
 
 

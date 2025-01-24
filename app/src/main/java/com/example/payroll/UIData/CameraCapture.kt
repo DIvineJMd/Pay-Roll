@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Environment
@@ -72,6 +74,7 @@ import com.example.payroll.data.ViewModel
 import com.example.payroll.database.AttendanceRequest
 import kotlinx.coroutines.delay
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -95,23 +98,27 @@ class CameraCapture {
         var remark by remember { mutableStateOf("") }
         var showLoadingDialog by remember { mutableStateOf(false) }
 
-
-        val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-                if (success) {
-                    capturedImageUri = uri ?: Uri.EMPTY
-                }
-            }
-
-
-
         val createFileAndUri = {
             photoFile = context.createImageFile()
-            uri = FileProvider.getUriForFile(
-                context,
-                BuildConfig.APPLICATION_ID + ".provider",
-                photoFile!!
-            )
+            uri = photoFile?.let {
+                FileProvider.getUriForFile(
+                    context,
+                    BuildConfig.APPLICATION_ID + ".provider",
+                    it
+                )
+            }
         }
+        val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                // Compress the image file
+                photoFile = context.compressImageFile(photoFile)
+                capturedImageUri = uri ?: Uri.EMPTY
+            }
+        }
+
+
+
+
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) {
@@ -304,6 +311,11 @@ class CameraCapture {
                                     return@Button
                                 }
 
+                                Toast.makeText(
+                                    context,
+                                    "${ photoFile!!.length()/1024 } kb",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                                 viewModel.saveAttendance(
                                     requestData,
                                     photoFile,
@@ -322,7 +334,7 @@ class CameraCapture {
                     )
                 ) {
                     Text(
-                        "PUNCH IN / OUT",
+                        "PUNCH IN ",
                         style = MaterialTheme.typography.bodyLarge.copy(color = Color.White)
                     )
                 }
@@ -371,7 +383,25 @@ class CameraCapture {
             }
         }
     }
+    fun Context.compressImageFile(file: File?): File? {
+        return file?.let {
+            val compressedFile = File(externalCacheDir, file.name)
+            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 400, 500, true)
 
+            var quality = 95
+            while (quality > 50) {
+                val outputStream = FileOutputStream(compressedFile)
+                resizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+                outputStream.close()
+
+                if (compressedFile.length() <= 300 * 1024) break
+                quality -= 5
+            }
+
+            compressedFile
+        }
+    }
 
     @SuppressLint("SimpleDateFormat")
     fun Context.createImageFile(): File {

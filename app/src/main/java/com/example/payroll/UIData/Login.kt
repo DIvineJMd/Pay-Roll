@@ -222,7 +222,7 @@ fun LoginPage(
                                 Icon(
                                     imageVector = Icons.Outlined.Person,
                                     contentDescription = "Email Icon",
-                                    tint = MaterialTheme.colorScheme.tertiary
+                                    tint = Color.Black
                                 )
                             },
                             colors = TextFieldDefaults.textFieldColors(
@@ -254,7 +254,7 @@ fun LoginPage(
                                 Icon(
                                     imageVector = Icons.Outlined.Lock,
                                     contentDescription = "Password Icon",
-                                    tint = MaterialTheme.colorScheme.tertiary
+                                    tint = Color.Black
                                 )
                             },
                             trailingIcon = {
@@ -264,7 +264,7 @@ fun LoginPage(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clickable { passwordVisible = !passwordVisible },
-                                    tint = MaterialTheme.colorScheme.tertiary
+                                    tint = Color.Black
                                 )
                             },
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -285,7 +285,10 @@ fun LoginPage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 16.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFDC2626)
+                        )
                     ) {
                         when {
                             clicked && loginState is Resource.Loading -> {

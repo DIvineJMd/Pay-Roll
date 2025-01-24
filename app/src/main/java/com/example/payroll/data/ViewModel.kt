@@ -103,7 +103,12 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         _attendanceState.value=Resource.Loading
         _outloader.value=Resource.Loading
     }
-
+    fun logout(){
+        viewModelScope.launch {
+            userRepository.clearAllData()
+            resetloader()
+        }
+    }
     fun punchOut(outData: OutData, context: Context) {
         viewModelScope.launch {
             try {

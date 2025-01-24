@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -297,11 +298,16 @@ fun MainPage(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Handle settings click */ }) {
+                    IconButton(onClick = {
+                        viewModel.logout()
+                        navHostController.popBackStack("Main",inclusive = true)
+                        navHostController.navigate("loginPage")
+                    }) {
                         Icon(
-                            painter = painterResource(id = R.drawable.bell),
+                            Icons.Default.ExitToApp,
                             contentDescription = "Notification",
-                            tint = Color.Red
+                            tint = Color.Red,
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                 },
@@ -446,7 +452,7 @@ fun MainPage(
             ModalBottomSheet(
                 onDismissRequest = { showBottomSheet = false },
                 sheetState = sheetState,
-
+                containerColor = Color.White
                 ) {
                 Column(
                     modifier = Modifier
