@@ -2,6 +2,7 @@ package com.example.payroll.UIData
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -25,10 +26,13 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -72,6 +76,8 @@ import com.example.payroll.data.AttendanceRequest_api
 import com.example.payroll.data.Resource
 import com.example.payroll.data.ViewModel
 import com.example.payroll.database.AttendanceRequest
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileOutputStream
@@ -84,20 +90,30 @@ class CameraCapture {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "SimpleDateFormat")
     @OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class)
     @Composable
-    fun Update_attendance(viewModel: ViewModel,navController: NavController) {
+    fun Update_attendance(viewModel: ViewModel, navController: NavController) {
         val context = LocalContext.current
         val file = context.createImageFile()
         var uri = FileProvider.getUriForFile(
             Objects.requireNonNull(context), BuildConfig.APPLICATION_ID + ".provider", file
         )
         var photoFile by remember { mutableStateOf<File?>(null) }
+        var showDialog by remember { mutableStateOf(false) }
+        var gpsStatus by remember { mutableStateOf(false) }
 
+        val locationSettingsLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                gpsStatus = true
+                showDialog = false
+
+            }
+        }
         val attendanceState by viewModel.attendanceState.collectAsState()
         var selected by remember { mutableStateOf(0) }
         var capturedImageUri by remember { mutableStateOf<Uri>(Uri.EMPTY) }
         var remark by remember { mutableStateOf("") }
         var showLoadingDialog by remember { mutableStateOf(false) }
-
         val createFileAndUri = {
             photoFile = context.createImageFile()
             uri = photoFile?.let {
@@ -108,16 +124,27 @@ class CameraCapture {
                 )
             }
         }
-        val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-            if (success) {
-                // Compress the image file
-                photoFile = context.compressImageFile(photoFile)
-                capturedImageUri = uri ?: Uri.EMPTY
+        val cameraLauncher =
+            rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+                if (success) {
+                    // Compress the image file
+                    photoFile = context.compressImageFile(photoFile)
+                    capturedImageUri = uri ?: Uri.EMPTY
+                }
+            }
+
+
+        LaunchedEffect(Unit) {
+            checkGPSStatus(context) { status ->
+                gpsStatus = status == "GPS is ON"
+                println("GPS Status: $gpsStatus")
+                if (gpsStatus) {
+                    showDialog = false
+                } else {
+                    showDialog = true
+                }
             }
         }
-
-
-
 
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -129,6 +156,30 @@ class CameraCapture {
             } else {
                 Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
             }
+        }
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    // Prevent dismissal unless GPS is on
+                    checkGPSStatus(context) { status ->
+                        gpsStatus = status == "GPS is ON"
+                        if (gpsStatus) {
+                            showDialog = false
+                        }
+                    }
+                },
+                title = { Text("GPS Required") },
+                text = { Text("Please enable GPS to continue using the app.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            requestGPSEnable(context, locationSettingsLauncher)
+                        }
+                    ) {
+                        Text("Enable GPS")
+                    }
+                }
+            )
         }
         Scaffold(
             containerColor = Color.Transparent, // Light gray background
@@ -152,6 +203,8 @@ class CameraCapture {
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -273,54 +326,100 @@ class CameraCapture {
                         .fillMaxWidth()
                         .height(56.dp),
                     onClick = {
-                        showLoadingDialog = true
-                        println("Debug: PhotoFile before submission = ${photoFile?.absolutePath}")
+                        if (photoFile == null || capturedImageUri == Uri.EMPTY) {
+                            Toast.makeText(context, "Please take a photo first", Toast.LENGTH_SHORT)
+                                .show()
+                            showLoadingDialog = false
+                            return@Button
+                        }
+                        println("photoFile = $photoFile")
+                        checkGPSStatus(context) { status ->
+                            gpsStatus = status == "GPS is ON"
+                            println("GPS Status: $gpsStatus")
 
-                        val locationManager =
-                            context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-                        if (ActivityCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            val location =
-                                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                            location?.let {
-                                val dateFormat = SimpleDateFormat("dd-MM-yyyy")
-                                val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-                                val currentDate = Date()
+                            if (gpsStatus) {
+                                showDialog = false
+                                showLoadingDialog = true
+                                println("Debug: Loading dialog set to true")
 
-                                val attendanceStatus = when (selected) {
-                                    0 -> "present"
-                                    1 -> "absent"
-                                    2 -> "leave"
-                                    else -> ""
-                                }
+                                println("Debug: PhotoFile before submission = ${photoFile?.absolutePath}")
 
-                                val requestData = AttendanceRequest_api(
-                                    status = attendanceStatus,
-                                    transDate = dateFormat.format(currentDate),
-                                    inTime = timeFormat.format(currentDate),
-                                    lat = it.latitude.toString(),
-                                    lang = it.longitude.toString(),
-                                )
+                                val fusedLocationClient =
+                                    LocationServices.getFusedLocationProviderClient(context)
+                                println("Debug: FusedLocationProviderClient initialized")
 
-                                if (photoFile == null) {
-                                    Toast.makeText(context, "Please take a photo first", Toast.LENGTH_SHORT).show()
+                                if (ActivityCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.ACCESS_FINE_LOCATION
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    println("Debug: Location permission granted")
+
+
+
+
+                                    println("Debug:  requesting current location")
+                                    Toast.makeText(
+                                        context,
+                                        "requesting current location",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    fusedLocationClient.getCurrentLocation(
+                                        LocationRequest.PRIORITY_HIGH_ACCURACY, null
+                                    ).addOnSuccessListener { currentLocation ->
+                                        if (currentLocation != null) {
+                                            Toast.makeText(
+                                                context,
+                                                "Got the location",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            println("Debug: Current location fetched = $currentLocation")
+
+                                            processLocation(
+                                                viewModel,
+                                                currentLocation.latitude.toString(),
+                                                currentLocation.longitude.toString(),
+                                                photoFile,
+                                                context,
+                                                selected
+                                            )
+                                        } else {
+                                            println("Debug: Failed to fetch current location")
+                                            Toast.makeText(
+                                                context,
+                                                "Unable to get location. Try again.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            showLoadingDialog = false
+                                        }
+                                    }.addOnFailureListener { e ->
+                                        println("Debug: Error fetching current location: ${e.message}")
+                                        Toast.makeText(
+                                            context,
+                                            "Error getting location: ${e.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        showLoadingDialog = false
+                                    }
+
+
+                                } else {
+                                    println("Debug: Location permission not granted")
+                                    Toast.makeText(
+                                        context,
+                                        "Location permission not granted",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                     showLoadingDialog = false
-                                    return@Button
                                 }
-
+                            } else {
+                                showDialog = true
                                 Toast.makeText(
                                     context,
-                                    "${ photoFile!!.length()/1024 } kb",
+                                    "Please enable GPS and try again.",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                viewModel.saveAttendance(
-                                    requestData,
-                                    photoFile,
-                                    context
-                                )
                             }
                         }
                     },
@@ -383,6 +482,58 @@ class CameraCapture {
             }
         }
     }
+
+    @SuppressLint("SimpleDateFormat")
+    fun processLocation(
+        viewModel: ViewModel,
+        lat: String,
+        lang: String,
+        photoFile: File?,
+        context: Context,
+        selected: Int
+    ) {
+        println("Debug: Location is not null, processing location data")
+
+        val dateFormat = SimpleDateFormat("dd-MM-yyyy")
+        val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+        val currentDate = Date()
+        println("Debug: Current date = $currentDate")
+
+        val attendanceStatus = when (selected) {
+            0 -> "present"
+            1 -> "absent"
+            2 -> "leave"
+            else -> ""
+        }
+        println("Debug: Attendance status selected = $attendanceStatus")
+
+        val requestData = AttendanceRequest_api(
+            status = attendanceStatus,
+            transDate = dateFormat.format(currentDate),
+            inTime = timeFormat.format(currentDate),
+            lat = lat,
+            lang = lang,
+        )
+        println("Debug: Request data created = $requestData")
+
+
+
+        println("Debug: Photo file exists, submitting attendance")
+        viewModel.saveAttendance(
+            requestData,
+            photoFile,
+            context
+        )
+        println("Debug: Attendance saved")
+
+        Toast.makeText(
+            context,
+            "${photoFile!!.length() / 1024} kb",
+            Toast.LENGTH_SHORT
+        ).show()
+        println("Debug: Photo file size displayed to user")
+    }
+
     fun Context.compressImageFile(file: File?): File? {
         return file?.let {
             val compressedFile = File(externalCacheDir, file.name)

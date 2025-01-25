@@ -9,12 +9,14 @@ import kotlinx.coroutines.launch
 import retrofit2.awaitResponse
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.MutableState
 import com.example.payroll.database.AttendanceRequest
 import com.example.payroll.database.User
 import com.example.payroll.database.UserRepository
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
@@ -124,11 +126,13 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 
                 // Perform the network call off the main thread
                 withContext(Dispatchers.IO) {
+                    println(outData)
                     val response = apiService.outTime(outData).execute()
 
                     // Handle API response on the main thread after completion
                     withContext(Dispatchers.Main) {
                         if (response.isSuccessful) {
+                            putOuttime(1,outData.outTime)
                             _outloader.value = Resource.Success("Out time updated successfully.")
                         } else {
                             val errorBody = response.errorBody()?.string() ?: "Unknown error"
@@ -140,6 +144,8 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
                             println("Response Headers: $headers")
 
                             _outloader.value = Resource.Error("Failed to update out time. Error: $errorBody")
+                            delay(2000)
+
                         }
                     }
                 }
@@ -164,21 +170,31 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     _attendanceState.value = Resource.Loading
     viewModelScope.launch {
         try {
+            println("Hereeeeeeeeeeeeeeeeee")
             val token = getAuthToken(context)
             if (token.isNullOrEmpty()) {
                 _attendanceState.value = Resource.Error("Token is missing. Please login again.")
                 return@launch
             }
-
+            println("Mill gyaaaa tokennnnnnnnnnnnnnnn")
             val imagePart = imageFile?.let{
                 MultipartBody.Part.createFormData("image",it.name,it.asRequestBody("image/*".toMediaType()))
             }
             // Call the API
+            println("PhotooBhi haiiiiiiiiiii ")
+            if(imagePart.toString().isNotEmpty()){
+                Toast.makeText(
+                    context,
+                    "image is ready , calling api",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
             val apiService = ApiClient.getInstance(token)
             val response = imagePart?.let { apiService.saveAttendance(request, it).awaitResponse() }
-
+            println("Responseeeeeeeeeeeeeeeeeeeee")
             if (response != null) {
                 if (response.isSuccessful) {
+                        println("Successssssssssssssssssssss")
                     _attendanceState.value = Resource.Success("Attendance marked successfully!")
                     userRepository.saveAttendance(attendanceRequest = AttendanceRequest(
                         id = 1,
@@ -206,29 +222,29 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
      fun putOuttime(id:Int,outtime:String){
          viewModelScope.launch{ userRepository.updateOuttime(id, outtime) }
     }
-    fun saveLocation(request: LocationRequest, context: Context) {
-        _Post.value = Resource.Loading
-        viewModelScope.launch {
-            try {
-                val token = getAuthToken(context = context)
-                if (token.isNullOrEmpty()) {
-                    _Post.value = Resource.Error("Token is missing. Please login again.")
-                    return@launch
-                }
-
-                val apiService = ApiClient.getInstance("Bearer $token")
-                val response = apiService.saveLocation(request).awaitResponse()
-                if (response.isSuccessful) {
-                    _Post.value = Resource.Success("Location saved successfully!")
-                } else {
-                    _Post.value =
-                        Resource.Error("Failed to save location: ${response.errorBody()?.string()}")
-                }
-            } catch (e: Exception) {
-                _Post.value = Resource.Error("Exception: ${e.message}")
-            }
-        }
-    }
+//    fun saveLocation(request: LocationRequest, context: Context) {
+//        _Post.value = Resource.Loading
+//        viewModelScope.launch {
+//            try {
+//                val token = getAuthToken(context = context)
+//                if (token.isNullOrEmpty()) {
+//                    _Post.value = Resource.Error("Token is missing. Please login again.")
+//                    return@launch
+//                }
+//
+//                val apiService = ApiClient.getInstance("Bearer $token")
+//                val response = apiService.saveLocation(request).awaitResponse()
+//                if (response.isSuccessful) {
+//                    _Post.value = Resource.Success("Location saved successfully!")
+//                } else {
+//                    _Post.value =
+//                        Resource.Error("Failed to save location: ${response.errorBody()?.string()}")
+//                }
+//            } catch (e: Exception) {
+//                _Post.value = Resource.Error("Exception: ${e.message}")
+//            }
+//        }
+//    }
 
     suspend fun getAuthToken(context: Context): String? {
         val data = userRepository.getUser()

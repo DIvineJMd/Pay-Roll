@@ -1,4 +1,4 @@
-package com.example.payroll.UIData
+package com.example.payroll.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

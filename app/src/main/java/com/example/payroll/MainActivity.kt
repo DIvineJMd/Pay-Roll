@@ -1,6 +1,7 @@
 package com.example.payroll
 
 import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -39,6 +40,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         // Initialize database and repository
         val database = UserDatabase.getDatabase(applicationContext)
@@ -117,4 +119,5 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 }

@@ -43,6 +43,7 @@ android {
 }
 
 dependencies {
+    implementation (libs.play.services.location)
     implementation( libs.androidx.work.runtime.ktx.v281)
     implementation( libs.play.services.location.v2101)
     implementation(libs.coil.kt.coil.compose)
