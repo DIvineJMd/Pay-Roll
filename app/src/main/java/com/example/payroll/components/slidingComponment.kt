@@ -112,12 +112,17 @@ fun SlideToUnlock(
 
 @OptIn(ExperimentalWearMaterialApi::class)
 fun calculateSwipeFraction(progress: SwipeProgress<Anchor>): Float {
-    val atAnchor = progress.from == progress.to
-    val fromStart = progress.from == Anchor.Start
-    return if (atAnchor) {
-        if (fromStart) 0f else 1f
-    } else {
-        if (fromStart) progress.fraction else 1f - progress.fraction
+    return try {
+        val atAnchor = progress.from == progress.to
+        val fromStart = progress.from == Anchor.Start
+
+        when {
+            atAnchor -> if (fromStart) 0f else 1f
+            fromStart -> progress.fraction
+            else -> 1f - progress.fraction
+        }
+    } catch (e: Exception) {
+        0f // Default safe value
     }
 }
 

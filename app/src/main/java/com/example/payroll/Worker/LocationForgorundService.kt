@@ -2,11 +2,13 @@ package com.example.payroll.Worker
 
 import android.Manifest
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
@@ -23,7 +25,7 @@ import retrofit2.awaitResponse
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-
+import android.provider.Settings
 class LocationForegroundService : Service() {
     private lateinit var locationClient: FusedLocationProviderClient
     private lateinit var locationDao: LocationDao
@@ -45,13 +47,14 @@ class LocationForegroundService : Service() {
 
         // Start periodic pending locations check
         startPendingLocationsCheck()
+        startGPSStatusMonitoring()
+        initializeLocationTracking()
     }
 
     private fun startPendingLocationsCheck() {
         pendingLocationsJob = serviceScope.launch {
             while (isActive) {
                     sendPendingLocations()
-
                 delay(TimeUnit.MINUTES.toMillis(15)) // Check every 15 minutes
             }
         }
@@ -93,7 +96,16 @@ class LocationForegroundService : Service() {
         }
     }
 
+    // Modify initializeLocationTracking to include GPS check
     private fun initializeLocationTracking() {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+
+        if (!isGpsEnabled) {
+            updateNotification("GPS is OFF. Unable to track location.")
+            return
+        }
+
         locationClient = LocationServices.getFusedLocationProviderClient(this)
         val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
@@ -119,6 +131,7 @@ class LocationForegroundService : Service() {
         )
     }
 
+
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
             locationResult.lastLocation?.let { location ->
@@ -126,6 +139,57 @@ class LocationForegroundService : Service() {
                 serviceScope.launch{ handleLocation(location) }
             }
         }
+    }
+    private fun startGPSStatusMonitoring() {
+        serviceScope.launch {
+            while (isActive) {
+                val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+
+                if (!isGpsEnabled) {
+                    showGPSNotification()
+                } else {
+                    // GPS is now ON
+                    dismissGPSNotification()
+
+                    // Restart location tracking if it was previously started
+                    if (isTracking) {
+                        withContext(Dispatchers.Main) {
+                            initializeLocationTracking()
+                        }
+                    }
+                }
+                delay(TimeUnit.MINUTES.toMillis(5))
+            }
+        }
+    }
+    private fun showGPSNotification() {
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("GPS Required")
+            .setContentText("Tap to enable GPS for location tracking")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(GPS_NOTIFICATION_ID, notification)
+    }
+
+    private fun dismissGPSNotification() {
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(GPS_NOTIFICATION_ID)
     }
 
     private suspend fun handleLocation(location: android.location.Location) {
@@ -274,5 +338,7 @@ class LocationForegroundService : Service() {
     companion object {
         private const val TAG = "LocationForegroundService"
         private const val CHANNEL_ID = "location_tracking_channel"
+        private const val GPS_NOTIFICATION_ID = 2 // Unique ID for GPS notification
+
     }
 }

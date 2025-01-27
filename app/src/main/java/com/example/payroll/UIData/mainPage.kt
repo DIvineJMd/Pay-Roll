@@ -18,6 +18,8 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,6 +46,8 @@ import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.shadow
 import androidx.navigation.NavController
+import com.example.payroll.Worker.checkGPSStatus
+import com.example.payroll.Worker.requestGPSEnable
 import com.example.payroll.components.CustomBottomBar
 import com.example.payroll.components.PunchInCircleButton
 import com.example.payroll.components.SlideToUnlock
@@ -453,11 +457,17 @@ fun MainPage(
                     }
 
                     2 -> {
-                        Box(
+                        Column(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+
                         ) {
-                            Text("Calendar Page")
+                            Column (modifier.fillMaxWidth().padding(10.dp)){
+                                Text(text = "Location Permission: $hasLocationPermissions")
+                                Text(text="Location Background: $hasBackgroundPermission")
+                                Text(text="Battary optimization: $hasBatteryOptimization")
+                                Text(text = "Gps: $gpsStatus")
+                            }
+                            LocationListScreen(viewModel = viewModel,modifier.padding())
                         }
                     }
                 }
@@ -588,30 +598,26 @@ fun MainPage(
     }
 }
 
-//        LocationListScreen(viewModel = viewModel,modifier.padding(it))
-//
-//@Composable
-//fun LocationListScreen(viewModel: ViewModel, modifier: Modifier) {
-//    val locations by viewModel.locations.collectAsState()
-//
-//    LazyColumn(modifier = modifier) {
-//        items(locations) { location ->
-//            Card(
-//                modifier = Modifier.padding(5.dp),
-//                elevation = CardDefaults.elevatedCardElevation(
-//                    defaultElevation = 5.dp
-//                )
-//            ) {
-//                Text(
-//                    modifier = Modifier.padding(3.dp),
-//                    text = "Lat: ${location.lat}, Lng: ${location.lang}, Time: ${location.timing}, Status: ${location.uploaded}"
-//                )
-//            }
-//        }
-//    }
-//}
+@Composable
+fun LocationListScreen(viewModel: ViewModel, modifier: Modifier) {
+    val locations by viewModel.locations.collectAsState()
 
-
+    LazyColumn(modifier = modifier) {
+        items(locations) { location ->
+            Card(
+                modifier = Modifier.padding(5.dp),
+                elevation = CardDefaults.elevatedCardElevation(
+                    defaultElevation = 5.dp
+                )
+            ) {
+                Text(
+                    modifier = Modifier.padding(3.dp),
+                    text = "Lat: ${location.lat}, Lng: ${location.lang}, Time: ${location.timing}, Status: ${location.uploaded}"
+                )
+            }
+        }
+    }
+}
 // Permission handling functions
 fun requestPermissionsInSequence(
     context: Context,
