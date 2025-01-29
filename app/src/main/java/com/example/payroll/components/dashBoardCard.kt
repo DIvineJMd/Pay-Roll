@@ -33,8 +33,8 @@ fun DashBoardCard(modifier: Modifier, onClick: () -> Unit, name: String,@Drawabl
         modifier = modifier,
         onClick = { onClick() },
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 5.dp,
-            pressedElevation = 10.dp
+            defaultElevation = 10.dp,
+            pressedElevation = 15.dp
         ),
         colors = CardDefaults.cardColors(
             containerColor = Color.White
@@ -50,7 +50,7 @@ fun DashBoardCard(modifier: Modifier, onClick: () -> Unit, name: String,@Drawabl
             Image(
                 painter = painterResource(id = id),
                 "",
-                modifier = modifier.size(150.dp)
+                modifier = modifier.padding(horizontal = 32.dp, vertical = 15.dp)
             )
             Text(
                 text = name,
@@ -61,13 +61,13 @@ fun DashBoardCard(modifier: Modifier, onClick: () -> Unit, name: String,@Drawabl
             Spacer(
                 modifier = Modifier
                     .padding(top = 5.dp)
-                    .fillMaxWidth(0.17f)
+                    .fillMaxWidth(0.30f)
                     .height(5.dp)
                     .background(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
                                 Color(0xFFDC2626),
-                                Color.White
+                                Color(0xFFD9BDBD)
                             )
                         ),
                         shape = RoundedCornerShape(5.dp)

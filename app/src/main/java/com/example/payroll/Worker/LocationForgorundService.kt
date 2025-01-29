@@ -163,6 +163,7 @@ class LocationForegroundService : Service() {
             }
         }
     }
+
     private fun showGPSNotification() {
         val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
         val pendingIntent = PendingIntent.getActivity(
@@ -226,6 +227,7 @@ class LocationForegroundService : Service() {
                                 uploaded = true
                             )
                             locationDao.insertLocation(localLocation)
+                            Log.d("Debug Location ","api success : $localLocation inserted in database")
                             updateNotification("Location tracked: ${locationRequest.lat}, ${locationRequest.lang} ")
                         }
                     } catch (e: Exception) {

@@ -13,3 +13,12 @@ class ViewModelFactory(private val userRepository: UserRepository) : ViewModelPr
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+class DashBoardViewModelFactory(private val userRepository: UserRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(DashBoardViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return DashBoardViewModel(userRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}

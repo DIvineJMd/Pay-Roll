@@ -60,10 +60,13 @@ import androidx.navigation.NavController
 import com.example.payroll.R
 import com.example.payroll.data.ViewModel
 import com.example.payroll.data.Resource
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 
 @RequiresApi(Build.VERSION_CODES.Q)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun LoginPage(
     viewModel: ViewModel, context: Context, navController: NavController
@@ -89,6 +92,7 @@ fun LoginPage(
             hasLocationPermissions = location
             hasBackgroundPermission = background
             hasBatteryOptimization = battery
+
         }
     }
 
@@ -110,16 +114,22 @@ fun LoginPage(
             backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
     }
-
+    val notificationPermission = rememberPermissionState(
+        permission = Manifest.permission.POST_NOTIFICATIONS
+    )
     // Request permissions on first launch
     LaunchedEffect(Unit) {
         requestPermissionsInSequence(
-            context,
-            locationPermissionLauncher,
-            backgroundPermissionLauncher,
-            hasLocationPermissions,
-            hasBackgroundPermission,
-            hasBatteryOptimization
+            context = context,
+            locationLauncher = locationPermissionLauncher,
+            backgroundLauncher = backgroundPermissionLauncher,
+            hasLocation = hasLocationPermissions,
+            hasBackground = hasBackgroundPermission,
+            hasBattery = hasBatteryOptimization,
+            hasNotificationPermission = notificationPermission.status.isGranted,
+            requestNotificationPermission = {
+                notificationPermission.launchPermissionRequest()
+            }
         ) {
             showBatteryDialog = true
         }

@@ -113,16 +113,13 @@ fun SlideToUnlock(
 @OptIn(ExperimentalWearMaterialApi::class)
 fun calculateSwipeFraction(progress: SwipeProgress<Anchor>): Float {
     return try {
-        val atAnchor = progress.from == progress.to
-        val fromStart = progress.from == Anchor.Start
-
-        when {
-            atAnchor -> if (fromStart) 0f else 1f
-            fromStart -> progress.fraction
+        when (progress.from) {
+            progress.to -> if (progress.from == Anchor.Start) 0f else 1f
+            Anchor.Start -> progress.fraction
             else -> 1f - progress.fraction
         }
     } catch (e: Exception) {
-        0f // Default safe value
+        0f  // Safe default
     }
 }
 
@@ -139,20 +136,23 @@ fun Track(
 ) {
     val density = LocalDensity.current
     var fullWidth by remember { mutableIntStateOf(0) }
-
     val horizontalPadding = 10.dp
 
-    val startOfTrackPx = 0f
+    // Ensure these values are stable and non-zero
+    val startOfTrackPx = with(density) { horizontalPadding.toPx() }
     val endOfTrackPx = remember(fullWidth) {
-        with(density) { fullWidth - (2 * horizontalPadding + Thumb.Size).toPx() }
+        with(density) { fullWidth - (horizontalPadding + Thumb.Size).toPx() }
     }
 
-    val snapThreshold = 0.8f
-    val thresholds = { from: Anchor, _: Anchor ->
-        if (from == Anchor.Start) {
-            FractionalThreshold(snapThreshold)
+    // Add bounds checking
+    val anchors = remember(startOfTrackPx, endOfTrackPx) {
+        if (endOfTrackPx > startOfTrackPx) {
+            mapOf(
+                startOfTrackPx to Anchor.Start,
+                endOfTrackPx to Anchor.End
+            )
         } else {
-            FractionalThreshold(1f - snapThreshold)
+            mapOf(0f to Anchor.Start)
         }
     }
 
@@ -169,23 +169,15 @@ fun Track(
                 enabled = enabled,
                 state = swipeState,
                 orientation = Orientation.Horizontal,
-                anchors = mapOf(
-                    startOfTrackPx to Anchor.Start,
-                    endOfTrackPx to Anchor.End,
-                ),
-                thresholds = thresholds,
+                anchors = anchors,
+                thresholds = { _, _ -> FractionalThreshold(0.5f) },
                 velocityThreshold = Track.VelocityThreshold,
             )
             .background(
                 color = backgroundColor,
                 shape = RoundedCornerShape(percent = 50),
             )
-            .padding(
-                PaddingValues(
-                    horizontal = horizontalPadding,
-                    vertical = 8.dp,
-                )
-            ),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
         content = content,
     )
 }

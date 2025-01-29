@@ -1,4 +1,5 @@
 [versions]
+accompanistPermissions = "0.33.1-alpha"
 agp = "8.7.0"
 coilCompose = "3.0.4"
 coilComposeVersion = "2.0.0"
@@ -23,6 +24,7 @@ constraintlayoutComposeAndroid = "1.1.0"
 composeMaterial = "1.4.0"
 
 [libraries]
+accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }

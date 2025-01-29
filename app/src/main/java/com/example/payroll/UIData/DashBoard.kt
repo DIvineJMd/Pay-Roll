@@ -16,13 +16,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.payroll.R
 import com.example.payroll.components.DashBoardCard
 
 @Composable
 
 fun DashboardScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navController: NavController
 ) {
 
     LazyVerticalGrid(
@@ -80,13 +82,16 @@ fun DashboardScreen(
                 id = R.drawable.calnder
             )
         }
+        item {
+            DashBoardCard(
+                modifier=Modifier,
+                onClick = { navController.navigate("DashBoard") },
+                name = "Salary Slip",
+                id = R.drawable.invoice
+            )
+        }
     }
 
 
 }
 
-@Composable
-@Preview
-fun Preview_DashboardScreen() {
-    DashboardScreen(Modifier)
-}

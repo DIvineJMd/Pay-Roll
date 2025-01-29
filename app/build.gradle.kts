@@ -43,6 +43,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.accompanist.permissions)
+
     implementation (libs.play.services.location)
     implementation( libs.androidx.work.runtime.ktx.v281)
     implementation( libs.play.services.location.v2101)

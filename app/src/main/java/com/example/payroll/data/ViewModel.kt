@@ -28,17 +28,14 @@ import retrofit2.HttpException
 import java.io.File
 import java.io.IOException
 
-sealed class Resource<out T> {
-    object Loading : Resource<Nothing>()
-    data class Success<out T>(val data: T) : Resource<T>()
-    data class Error(val message: String) : Resource<Nothing>()
-}
-
 class ViewModel(private val userRepository: UserRepository) : ViewModel() {
+
     private val _attendanceState = MutableStateFlow<Resource<String>>(Resource.Loading)
     val attendanceState: StateFlow<Resource<String>> = _attendanceState.asStateFlow()
+
     private val _outloader = MutableStateFlow<Resource<String>>(Resource.Loading)
     val outloader: StateFlow<Resource<String>> = _outloader.asStateFlow()
+
     private val _locations =
         MutableStateFlow<List<com.example.payroll.database.LocationRequest>>(emptyList())
 
@@ -47,9 +44,12 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 
     private val _Post = MutableStateFlow<Resource<String>>(Resource.Loading)
     val post: StateFlow<Resource<String>> = _Post.asStateFlow()
+
     private val _userData = MutableStateFlow<User?>(null)
     val userData: StateFlow<User?> = _userData
+
     private var authToken: String? = null
+
     val locations: StateFlow<List<com.example.payroll.database.LocationRequest>> =
         userRepository.getAllLocationsFlow()
             .stateIn(
@@ -170,18 +170,15 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     _attendanceState.value = Resource.Loading
     viewModelScope.launch {
         try {
-            println("Hereeeeeeeeeeeeeeeeee")
             val token = getAuthToken(context)
             if (token.isNullOrEmpty()) {
                 _attendanceState.value = Resource.Error("Token is missing. Please login again.")
                 return@launch
             }
-            println("Mill gyaaaa tokennnnnnnnnnnnnnnn")
             val imagePart = imageFile?.let{
                 MultipartBody.Part.createFormData("image",it.name,it.asRequestBody("image/*".toMediaType()))
             }
             // Call the API
-            println("PhotooBhi haiiiiiiiiiii ")
             if(imagePart.toString().isNotEmpty()){
                 Toast.makeText(
                     context,
@@ -191,10 +188,8 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
             }
             val apiService = ApiClient.getInstance(token)
             val response = imagePart?.let { apiService.saveAttendance(request, it).awaitResponse() }
-            println("Responseeeeeeeeeeeeeeeeeeeee")
             if (response != null) {
                 if (response.isSuccessful) {
-                        println("Successssssssssssssssssssss")
                     _attendanceState.value = Resource.Success("Attendance marked successfully!")
                     userRepository.saveAttendance(attendanceRequest = AttendanceRequest(
                         id = 1,

@@ -26,6 +26,18 @@ interface ApiService {
 
     @GET("location/get-all")
     fun getAllLocations(): Call<List<LocationResponse>>
+
+    @GET("payroll/get-sal-slip")
+    suspend fun getSalarySlip(
+        @Query("accId") accId: Int,
+        @Query("cycle") cycle: String
+    ): Response<SalSlipRequest>
+
+    @GET("payroll/get-cycles")
+    suspend fun getPayrollCycles(
+        @Query("accId") accId: Int
+    ): Response<PayrollCyclesResponse>
+
     @Multipart
     @POST("attendance/save")
     fun saveAttendance(

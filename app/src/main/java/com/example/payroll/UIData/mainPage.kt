@@ -22,8 +22,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
@@ -46,6 +48,7 @@ import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.shadow
 import androidx.navigation.NavController
+import com.example.payroll.Worker.areNotificationsEnabled
 import com.example.payroll.Worker.checkGPSStatus
 import com.example.payroll.Worker.requestGPSEnable
 import com.example.payroll.components.CustomBottomBar
@@ -54,13 +57,16 @@ import com.example.payroll.components.SlideToUnlock
 import com.example.payroll.data.OutData
 import com.example.payroll.data.Resource
 import com.example.payroll.database.AttendanceRequest
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
 @Composable
 fun MainPage(
@@ -76,11 +82,15 @@ fun MainPage(
     var hasLocationPermissions by remember { mutableStateOf(false) }
     var hasBackgroundPermission by remember { mutableStateOf(false) }
     var hasBatteryOptimization by remember { mutableStateOf(false) }
+    var hasNotification by remember { mutableStateOf(false) }
     var hasPermissions by remember {
         mutableStateOf(
             hasAllPermissions(context)
         )
     }
+    val notificationPermission = rememberPermissionState(
+        permission = Manifest.permission.POST_NOTIFICATIONS
+    )
     var showDialog by remember { mutableStateOf(false) }
     var gpsStatus by remember { mutableStateOf(false) }
 
@@ -102,8 +112,9 @@ fun MainPage(
         )
     }
     var selectedItem by remember { mutableStateOf(0) }
-
+    var showNotificationbox by remember{ mutableStateOf(false) }
     val user by viewModel.userData.collectAsState()
+
     // Check initial permission states
     LaunchedEffect(Unit) {
         checkGPSStatus(context) { status ->
@@ -120,6 +131,13 @@ fun MainPage(
             hasBackgroundPermission = background
             hasBatteryOptimization = battery
         }
+        hasNotification= areNotificationsEnabled(context)
+        if(hasNotification){
+            showNotificationbox=false
+        }else{
+            showNotificationbox=true
+        }
+        println("==========> notification $hasNotification")
     }
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
@@ -150,21 +168,25 @@ fun MainPage(
     }
      // Request permissions on first launch
     LaunchedEffect(Unit) {
-
         requestPermissionsInSequence(
-            context,
-            locationPermissionLauncher,
-            backgroundPermissionLauncher,
-            hasLocationPermissions,
-            hasBackgroundPermission,
-            hasBatteryOptimization
+            context = context,
+            locationLauncher = locationPermissionLauncher,
+            backgroundLauncher = backgroundPermissionLauncher,
+            hasLocation = hasLocationPermissions,
+            hasBackground = hasBackgroundPermission,
+            hasBattery = hasBatteryOptimization,
+            hasNotificationPermission = hasNotification,
+            requestNotificationPermission = {
+                notificationPermission.launchPermissionRequest()
+            }
         ) {
             showBatteryDialog = true
         }
     }
     LaunchedEffect(hasPermissions, isTracking) {
+
         println("-----> $hasPermissions $isTracking")
-        if (hasPermissions || !isTracking) {
+        if (hasPermissions || !isTracking ) {
             // Start the location service only if not already tracking
             println("Starting the service as permissions are granted and tracking is not active")
 
@@ -187,12 +209,16 @@ fun MainPage(
         } else if (!hasPermissions && isTracking) {
             println("permission revoked---------->")
             requestPermissionsInSequence(
-                context,
-                locationPermissionLauncher,
-                backgroundPermissionLauncher,
-                hasLocationPermissions,
-                hasBackgroundPermission,
-                hasBatteryOptimization
+                context = context,
+                locationLauncher = locationPermissionLauncher,
+                backgroundLauncher = backgroundPermissionLauncher,
+                hasLocation = hasLocationPermissions,
+                hasBackground = hasBackgroundPermission,
+                hasBattery = hasBatteryOptimization,
+                hasNotificationPermission = hasNotification,
+                requestNotificationPermission = {
+                    notificationPermission.launchPermissionRequest()
+                }
             ) {
                 showBatteryDialog = true
             }
@@ -225,6 +251,26 @@ fun MainPage(
             }
         )
     }
+//    if (showNotificationbox) {
+//        AlertDialog(
+//            onDismissRequest = {
+//                hasNotification= areNotificationsEnabled(context)
+//                if(hasNotification){
+//                    showNotificationbox=false
+//                }else{
+//                    showNotificationbox=true
+//                }
+//            },
+//            title = { Text("Notification Permission Required") },
+//            text = { Text("This app requires notification permission to track location. Please enable it in settings.") },
+//            confirmButton = {
+//                TextButton(onClick = { openNotificationSettings(context) }) {
+//                    Text("Open Settings")
+//                }
+//            },
+//
+//        )
+//    }
 
 
 //        Button(
@@ -365,7 +411,7 @@ fun MainPage(
                 when (page) {
                     0 -> {
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.SpaceEvenly
                         ) {
@@ -452,7 +498,7 @@ fun MainPage(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            DashboardScreen(Modifier)
+                            DashboardScreen(Modifier,navHostController)
                         }
                     }
 
@@ -461,7 +507,9 @@ fun MainPage(
                             modifier = Modifier.fillMaxSize(),
 
                         ) {
-                            Column (modifier.fillMaxWidth().padding(10.dp)){
+                            Column (modifier
+                                .fillMaxWidth()
+                                .padding(10.dp)){
                                 Text(text = "Location Permission: $hasLocationPermissions")
                                 Text(text="Location Background: $hasBackgroundPermission")
                                 Text(text="Battary optimization: $hasBatteryOptimization")
@@ -499,7 +547,8 @@ fun MainPage(
                         value = remark,
                         onValueChange = { remark = it },
                         modifier = Modifier
-                            .fillMaxWidth().padding(5.dp)
+                            .fillMaxWidth()
+                            .padding(5.dp)
                             .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                             .background(Color.White, RoundedCornerShape(12.dp)),
                         placeholder = { Text("Remark (If Any)", color = Color.Gray) },
@@ -619,6 +668,7 @@ fun LocationListScreen(viewModel: ViewModel, modifier: Modifier) {
     }
 }
 // Permission handling functions
+@RequiresApi(Build.VERSION_CODES.O)
 fun requestPermissionsInSequence(
     context: Context,
     locationLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
@@ -626,6 +676,8 @@ fun requestPermissionsInSequence(
     hasLocation: Boolean,
     hasBackground: Boolean,
     hasBattery: Boolean,
+    hasNotificationPermission: Boolean,
+    requestNotificationPermission: () -> Unit,
     showBatteryDialog: () -> Unit
 ) {
     when {
@@ -642,10 +694,27 @@ fun requestPermissionsInSequence(
             backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
 
+        !hasNotificationPermission  -> {
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ){
+                println("Requestiing notification")
+                requestNotificationPermission()
+            }else{
+             openNotificationSettings(context)
+            }
+        }
+
         !hasBattery -> {
             showBatteryDialog()
         }
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun openNotificationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    }
+    context.startActivity(intent)
 }
 
 fun checkInitialPermissions(
@@ -658,7 +727,7 @@ fun checkInitialPermissions(
     callback(hasLocation, hasBackground, hasBattery)
 }
 
-private fun hasLocationPermissions(context: Context): Boolean {
+ fun hasLocationPermissions(context: Context): Boolean {
     return arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
@@ -667,7 +736,7 @@ private fun hasLocationPermissions(context: Context): Boolean {
     }
 }
 
-private fun hasBackgroundPermission(context: Context): Boolean {
+ fun hasBackgroundPermission(context: Context): Boolean {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         ContextCompat.checkSelfPermission(
             context,
@@ -681,7 +750,8 @@ private fun hasBackgroundPermission(context: Context): Boolean {
 fun hasAllPermissions(context: Context): Boolean {
     return hasLocationPermissions(context) &&
             hasBackgroundPermission(context) &&
-            context.isIgnoringBatteryOptimizations()
+            context.isIgnoringBatteryOptimizations() &&
+            areNotificationsEnabled(context)
 }
 
 @SuppressLint("BatteryLife")
