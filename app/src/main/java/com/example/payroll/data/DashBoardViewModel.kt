@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import retrofit2.HttpException
 
 class DashBoardViewModel(private val userRepository: UserRepository) : ViewModel() {
@@ -22,6 +23,9 @@ class DashBoardViewModel(private val userRepository: UserRepository) : ViewModel
 
     private val _salarySlip = MutableStateFlow<Resource<SalSlipRequest>>(Resource.Loading)
     val salarySlip: StateFlow<Resource<SalSlipRequest>> = _salarySlip
+
+    private val _attendance = MutableStateFlow<Resource<AttendanceResponse>>(Resource.Loading)
+    val attendance: StateFlow<Resource<AttendanceResponse>> = _attendance
 
     fun fetchSalarySlip(context: Context, cycle: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -40,6 +44,7 @@ class DashBoardViewModel(private val userRepository: UserRepository) : ViewModel
             try {
                 val empId = userData.value?.empId
                 if (empId == null) {
+                    println("abhibhi nulll")
                     _salarySlip.value = Resource.Error("Employee ID not found")
                     return@launch
                 }
@@ -99,8 +104,56 @@ class DashBoardViewModel(private val userRepository: UserRepository) : ViewModel
         }
     }
 
-    fun fetchSip(){
+    fun fetchAttendance(context: Context, dateFrom: String, dateTo: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _attendance.value = Resource.Loading
+            if(userData.value==null){
+                println("null milla ===========================================")
+                fetchUserData()
+                delay(1000)
+            }
 
+            val token = getAuthToken(context)
+            if (token.isNullOrEmpty()) {
+                _attendance.value = Resource.Error("Token is missing. Please login again.")
+                return@launch
+            }
+
+            try {
+                val empId = userData.value?.empId
+                if (empId == null) {
+                    println("abhibhi nulll")
+                    fetchUserData()
+                }
+
+                val response = empId?.let {
+                    ApiClient.getInstance(token).getAttendance(
+                        reportBy = "accId",
+                        reportByValue = it,
+                        dateFrom = dateFrom,
+                        dateTo = dateTo
+                    )
+                }
+
+                if (response != null) {
+                    if (response.isSuccessful) {
+                        response.body()?.let { attendanceData ->
+                            _attendance.value = Resource.Success(attendanceData)
+                        } ?: run {
+                            _attendance.value = Resource.Error("No attendance data available")
+                        }
+                    } else {
+                        _attendance.value = Resource.Error("Error: ${response.code()} - ${response.message()}")
+                    }
+                }
+            } catch (e: HttpException) {
+                Log.e("API_ERROR", "HttpException: ${e.message}")
+                _attendance.value = Resource.Error("Network error: ${e.message}")
+            } catch (e: Exception) {
+                Log.e("API_ERROR", "Exception: ${e.message}")
+                _attendance.value = Resource.Error("Unexpected error: ${e.message}")
+            }
+        }
     }
     suspend fun getAuthToken(context: Context): String? {
         val data = userRepository.getUser()

@@ -31,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.payroll.DashBoardPage.paySlip
+import com.example.payroll.UIData.CalendarPage
 import com.example.payroll.UIData.CameraCapture
 import com.example.payroll.UIData.LoginPage
 import com.example.payroll.UIData.MainPage
@@ -131,7 +132,8 @@ class MainActivity : ComponentActivity() {
                                 // Main Page
                                 composable("Main") {
                                     MainPage(viewModel = viewModel,
-                                        navHostController = navController
+                                        navHostController = navController,
+                                        viewModelDashBoard =dashBoardViewModel
                                     )
                                 }
                                 composable("Capture") {
@@ -141,6 +143,10 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("DashBoard"){
                                  paySlip().PaySlipScreen(  dashBoardViewModel,applicationContext,navController)
+                                }
+                                composable("Calendar") {
+                                    dashBoardViewModel.fetchUserData()
+                                   CalendarPage(dashBoardViewModel,navController).CalendarScreen(applicationContext)
                                 }
                             }
 

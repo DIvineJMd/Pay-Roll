@@ -24,7 +24,8 @@ import com.example.payroll.components.DashBoardCard
 
 fun DashboardScreen(
     modifier: Modifier = Modifier,
-    navController: NavController
+    navController: NavController,
+    onCalendarClick: () -> Unit
 ) {
 
     LazyVerticalGrid(
@@ -77,7 +78,8 @@ fun DashboardScreen(
         item {
             DashBoardCard(
                 modifier = Modifier,
-                onClick = { /*TODO*/ },
+                onClick = { onCalendarClick()
+                          },
                 name = "Calendar",
                 id = R.drawable.calnder
             )

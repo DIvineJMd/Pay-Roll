@@ -97,3 +97,24 @@ data class Payment(
 data class PayrollCyclesResponse(
     val list: List<String>
 )
+//
+// Data class for the attendance response
+data class AttendanceResponse(
+    val summary: Summary
+)
+
+data class Summary(
+    val attendance: List<AttendanceRecord>,
+    val summary: List<StatusSummary>
+)
+
+data class AttendanceRecord(
+    val transDate: String,
+    val footer: String,
+    val status: String
+)
+
+data class StatusSummary(
+    val status: String,
+    val count: Int
+)

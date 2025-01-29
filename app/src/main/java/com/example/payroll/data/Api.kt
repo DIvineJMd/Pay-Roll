@@ -48,6 +48,13 @@ interface ApiService {
     @PUT("attendance/update-outtime")
     fun outTime(@Body outData: OutData): Call<Void>
 
+    @GET("attendance/get-attendance")
+    suspend fun getAttendance(
+        @Query("reportBy") reportBy: String,
+        @Query("reportByValue") reportByValue: Int,
+        @Query("dateFrom") dateFrom: String,
+        @Query("dateTo") dateTo: String
+    ): Response<AttendanceResponse>
 }
 
 
