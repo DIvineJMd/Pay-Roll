@@ -33,6 +33,9 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     private val _attendanceState = MutableStateFlow<Resource<String>>(Resource.Loading)
     val attendanceState: StateFlow<Resource<String>> = _attendanceState.asStateFlow()
 
+    private val _attendanceEntry = MutableStateFlow<Resource<AttendanceDTO>>(Resource.Loading)
+    val attendanceEntry: StateFlow<Resource<AttendanceDTO>> = _attendanceEntry.asStateFlow()
+
     private val _outloader = MutableStateFlow<Resource<String>>(Resource.Loading)
     val outloader: StateFlow<Resource<String>> = _outloader.asStateFlow()
 
@@ -57,6 +60,39 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList()
             )
+    fun fetchLastAttendanceEntry(accId: Int, context: Context) {
+        println("HereAttendance=======================================>$accId")
+        viewModelScope.launch {
+            try {
+                _attendanceEntry.value = Resource.Loading
+                val token = getAuthToken(context)
+                if (token.isNullOrEmpty()) {
+                    _attendanceEntry.value = Resource.Error("Token is missing. Please login again.")
+                    return@launch
+                }
+
+                val apiService = ApiClient.getInstance(token)
+                val response = apiService.getLastAttendanceEntry(accId)
+
+                if (response.isSuccessful) {
+                    val attendanceResponse = response.body()
+                    if (attendanceResponse != null) {
+                        _attendanceEntry.value = Resource.Success(attendanceResponse)
+                        Log.d("Attendance", "Last attendance entry fetched successfully: $attendanceResponse")
+                    } else {
+                        _attendanceEntry.value = Resource.Error("Empty response received")
+                        Log.e("Attendance", "Empty response body")
+                    }
+                } else {
+                    _attendanceEntry.value = Resource.Error("Failed to fetch attendance: ${response.errorBody()?.string()}")
+                    Log.e("Attendance", "Failed to fetch attendance: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                _attendanceEntry.value = Resource.Error("Exception: ${e.message}")
+                Log.e("Attendance", "Exception while fetching attendance: ${e.message}")
+            }
+        }
+    }
 
     fun login(username: String, password: String, context: Context) {
         _loginState.value = Resource.Loading

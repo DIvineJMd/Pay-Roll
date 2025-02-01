@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -68,7 +69,9 @@ import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition",
+    "InlinedApi"
+)
 @Composable
 fun MainPage(
     modifier: Modifier = Modifier,
@@ -90,6 +93,8 @@ fun MainPage(
             hasAllPermissions(context)
         )
     }
+    val attendanceEntryState by viewModel.attendanceEntry.collectAsState()
+
     val notificationPermission = rememberPermissionState(
         permission = Manifest.permission.POST_NOTIFICATIONS
     )
@@ -105,6 +110,8 @@ fun MainPage(
 
         }
     }
+
+
     val coroutineScope = rememberCoroutineScope()
     var attendanceState by remember { mutableStateOf<AttendanceRequest?>(null) }
     var isTracking by remember {
@@ -116,7 +123,18 @@ fun MainPage(
     var selectedItem by remember { mutableStateOf(0) }
     var showNotificationbox by remember { mutableStateOf(false) }
     val user by viewModel.userData.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.fetchUserData()
+    }
+    when (user) {
+        null -> {
 
+        }
+        else -> {
+            // Handle when user data is available
+          viewModel.fetchLastAttendanceEntry(user!!.empId,context)
+        }
+    }
     // Check initial permission states
     LaunchedEffect(Unit) {
         checkGPSStatus(context) { status ->
@@ -141,15 +159,14 @@ fun MainPage(
         }
         println("==========> notification $hasNotification")
     }
-    LaunchedEffect(Unit) {
-        viewModel.fetchUserData()
-    }
+
     LaunchedEffect(Unit) {
         attendanceState = viewModel.getAttedance()
     }
     LaunchedEffect(showBottomSheet) {
         attendanceState = viewModel.getAttedance()
     }
+
     val backgroundPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -438,16 +455,33 @@ fun MainPage(
                                 fontSize = 13.sp
                             )
                             Spacer(Modifier.height(40.dp))
-                            PunchInCircleButton(
-                                {
-                                    if ((attendanceState?.inTime.isNullOrEmpty() && attendanceState?.outTime.isNullOrEmpty()) || (attendanceState?.inTime?.isNotEmpty() == true && attendanceState?.outTime?.isNotEmpty() == true)) {
-                                        navHostController.navigate("Capture")
-                                    } else {
-                                        showBottomSheet = true
-                                    }
-                                },
-                                InPunch = (attendanceState?.inTime.isNullOrEmpty() && attendanceState?.outTime.isNullOrEmpty()) || (attendanceState?.inTime?.isNotEmpty() == true && attendanceState?.outTime?.isNotEmpty() == true)
-                            )
+                            when (val state = attendanceEntryState) {
+                                is Resource.Loading -> {
+                                    CircularProgressIndicator()
+                                }
+                                is Resource.Success -> {
+                                    val attendance = state.data
+
+                                    PunchInCircleButton(
+                                        onClick = {
+                                            if ((attendance.dto.inTime.isEmpty() && (attendance.dto.outTime?.isEmpty() != false)) ||
+                                                (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))) {
+                                                navHostController.navigate("Capture")
+                                            } else {
+                                                showBottomSheet = true
+                                            }
+                                        },
+                                        InPunch = (attendance.dto.inTime.isEmpty() && attendance.dto.outTime.isNullOrEmpty()) ||
+                                                (attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true)
+                                    )
+                                }
+                                is Resource.Error -> {
+                                    // Handle error state if needed
+                                    Log.e("MainPage", "Attendance fetch error: ${state.message}")
+                                }
+                            }
+
+
                             Spacer(Modifier.height(80.dp))
 
                             Row(
@@ -459,12 +493,22 @@ fun MainPage(
                                         painter = painterResource(R.drawable.punchintime),
                                         contentDescription = "Punch In Time",
                                     )
-                                    attendanceState?.let {
-                                        Text(
-                                            text = it.inTime,
+                                    when(val state = attendanceEntryState){
+                                        is Resource.Loading -> {
+                                            Text(text = "Loading...")
+                                        }
+
+                                        is Resource.Error -> {
+                                            Text(text = "Error")
+
+                                        }
+                                        is Resource.Success ->{
+                                            state.data.dto.inTime?.let{ Text(
+                                                text = it,
 //                                            fontSize = 20.sp,
-                                            style = MaterialTheme.typography.titleSmall
-                                        )
+                                                style = MaterialTheme.typography.titleSmall
+                                            )}
+                                        }
                                     }
                                     Text(
                                         text = "punch in time",
@@ -478,13 +522,23 @@ fun MainPage(
                                         painter = painterResource(R.drawable.punchouttime),
                                         contentDescription = "Punch Out Time",
                                     )
-                                    attendanceState?.let {
-                                        it.outTime?.let { it1 ->
-                                            Text(
-                                                text = it1,
-                                                //                                            fontSize = 20.sp,
-                                                style = MaterialTheme.typography.titleSmall
-                                            )
+                                    when(val state = attendanceEntryState){
+                                        is Resource.Loading -> {
+                                            Text(text = "Loading...")
+                                        }
+
+                                        is Resource.Error -> {
+                                            Text(text = "Error")
+
+                                        }
+                                        is Resource.Success ->{
+                                            state.data.dto.outTime?.let {
+                                                Text(
+                                                    text = it,
+                                        //                                            fontSize = 20.sp,
+                                                    style = MaterialTheme.typography.titleSmall
+                                                )
+                                            }
                                         }
                                     }
                                     Text(

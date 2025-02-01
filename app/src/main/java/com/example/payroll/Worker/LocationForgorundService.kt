@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
@@ -70,7 +72,7 @@ class LocationForegroundService : Service() {
 
     private fun startTracking() {
         if (!isTracking) {
-            startForeground(1, createNotification("Starting location tracking..."))
+            startForeground(1, createNotification("We are happy to have you onboard! 🚀 Let's get started with PayRoll."))
             initializeLocationTracking()
             isTracking = true
 
@@ -102,7 +104,7 @@ class LocationForegroundService : Service() {
         val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
 
         if (!isGpsEnabled) {
-            updateNotification("GPS is OFF. Unable to track location.")
+            updateNotification(" Urgent: Open PayRoll for Important Updates!  We need your attention.")
             return
         }
 
@@ -174,8 +176,8 @@ class LocationForegroundService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("GPS Required")
-            .setContentText("Tap to enable GPS for location tracking")
+            .setContentTitle(" We need your attention.")
+            .setContentText("Tap to Open App Settings")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
@@ -211,52 +213,73 @@ class LocationForegroundService : Service() {
             try {
 
 
-                // Try to send to API if token exists
-                if (!token.isNullOrEmpty()) {
-                    try {
-                        val apiService = ApiClient.getInstance(token)
-                        val response = apiService.saveLocation(locationRequest).awaitResponse()
+                if(isInternetAvailable(context = applicationContext)){
+                    if (!token.isNullOrEmpty()) {
+                        try {
+                            val apiService = ApiClient.getInstance(token)
+                            val response = apiService.saveLocation(locationRequest).awaitResponse()
 
-                        if (response.isSuccessful) {
+                            if (response.isSuccessful) {
+                                // Save to local database
+                                val localLocation = com.example.payroll.database.LocationRequest(
+                                    lat = locationRequest.lat,
+                                    lang = locationRequest.lang,
+                                    timing = locationRequest.timing,
+                                    accId = locationRequest.accId,
+                                    uploaded = true
+                                )
+                                locationDao.insertLocation(localLocation)
+                                Log.d(
+                                    "Debug Location ",
+                                    "api success : $localLocation inserted in database"
+                                )
+//                                updateNotification("Location tracked: ${locationRequest.lat}, ${locationRequest.lang} ")
+                            }
+                        } catch (e: Exception) {
                             // Save to local database
                             val localLocation = com.example.payroll.database.LocationRequest(
                                 lat = locationRequest.lat,
                                 lang = locationRequest.lang,
                                 timing = locationRequest.timing,
                                 accId = locationRequest.accId,
-                                uploaded = true
+                                uploaded = false
                             )
                             locationDao.insertLocation(localLocation)
-                            Log.d("Debug Location ","api success : $localLocation inserted in database")
-                            updateNotification("Location tracked: ${locationRequest.lat}, ${locationRequest.lang} ")
+                            Log.e(TAG, "Error sending location to API", e)
                         }
-                    } catch (e: Exception) {
-                        // Save to local database
-                        val localLocation = com.example.payroll.database.LocationRequest(
-                            lat = locationRequest.lat,
-                            lang = locationRequest.lang,
-                            timing = locationRequest.timing,
-                            accId = locationRequest.accId,
-                            uploaded = false
-                        )
-                        locationDao.insertLocation(localLocation)
-                        Log.e(TAG, "Error sending location to API", e)
                     }
+                }else{
+                    val localLocation = com.example.payroll.database.LocationRequest(
+                        lat = locationRequest.lat,
+                        lang = locationRequest.lang,
+                        timing = locationRequest.timing,
+                        accId = locationRequest.accId,
+                        uploaded = false
+                    )
+                    locationDao.insertLocation(localLocation)
+                    Log.d(TAG, "Internet Off saving ing locally")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling location", e)
             }
         }
     }
+    fun isInternetAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
 
+        return networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
     private fun createNotification(data: String): Notification {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 CHANNEL_ID,
-                "Location Tracking",
+                "PayRoll Service",
                 android.app.NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifications for location tracking"
+                description = "Notifications for AppService"
             }
             val notificationManager = getSystemService(android.app.NotificationManager::class.java)
             notificationManager?.createNotificationChannel(channel)
@@ -276,7 +299,7 @@ class LocationForegroundService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Location Tracking")
+            .setContentTitle("PayRoll Service")
             .setContentText(data)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -294,32 +317,36 @@ class LocationForegroundService : Service() {
     }
 
     private suspend fun sendPendingLocations() {
-        try {
-            val token = UserDatabase.getDatabase(this).userDao().getCurrentUser()?.token
-            val pendingLocations = locationDao.getPendingLocations()
-            val apiService = ApiClient.getInstance(token)
+        if(isInternetAvailable(applicationContext)){
+            try {
+                val token = UserDatabase.getDatabase(this).userDao().getCurrentUser()?.token
+                val pendingLocations = locationDao.getPendingLocations()
+                val apiService = ApiClient.getInstance(token)
 
-            for (location in pendingLocations) {
-                try {
-                    val apiRequest = LocationRequest(
-                        lat = location.lat,
-                        lang = location.lang,
-                        timing = location.timing,
-                        accId = location.accId
-                    )
-                    val response = apiService.saveLocation(apiRequest).awaitResponse()
+                for (location in pendingLocations) {
+                    try {
+                        val apiRequest = LocationRequest(
+                            lat = location.lat,
+                            lang = location.lang,
+                            timing = location.timing,
+                            accId = location.accId
+                        )
+                        val response = apiService.saveLocation(apiRequest).awaitResponse()
 
-                    if (response.isSuccessful) {
-                        locationDao.updateUploadedStatus(location.id, true)
-                        Log.d(TAG, "Pending location sent successfully: $location")
+                        if (response.isSuccessful) {
+                            locationDao.updateUploadedStatus(location.id, true)
+                            Log.d(TAG, "Pending location sent successfully: $location")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error sending pending location: ${location.id}", e)
+                        continue
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error sending pending location: ${location.id}", e)
-                    continue
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in sendPendingLocations", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in sendPendingLocations", e)
+        }else{
+            updateNotification("Please Turn on Internet While Working.")
         }
     }
 

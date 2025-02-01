@@ -39,7 +39,10 @@ import java.util.*
 
 
 @RequiresApi(Build.VERSION_CODES.O)
-class CalendarPage(private val viewModel: DashBoardViewModel,private val navController: NavController) {
+class CalendarPage(
+    private val viewModel: DashBoardViewModel,
+    private val navController: NavController
+) {
     @Composable
     fun AttendanceCard(
         title: String,
@@ -95,7 +98,7 @@ class CalendarPage(private val viewModel: DashBoardViewModel,private val navCont
                 // Attendance Status Cards
                 val summaryMap = attendanceData.summary.summary.associate { it.status to it.count }
 
-                Column {
+                Column(modifier = Modifier.weight(0.25f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -152,7 +155,7 @@ class CalendarPage(private val viewModel: DashBoardViewModel,private val navCont
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 4.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFD32F2F))
                 ) {
                     Row(
@@ -189,95 +192,126 @@ class CalendarPage(private val viewModel: DashBoardViewModel,private val navCont
                     }
                 }
 
-                // **Fix: Wrap CalendarGrid inside a Box with proper height constraints**
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .weight(0.75f)
+                    ,
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    CalendarGrid(
-                        currentMonth = currentMonth,
-                        selectedDate = selectedDate,
-                        attendanceData = attendanceData,
-                        onDateSelected = { date ->
-                            selectedDate = date
-                            onDateSelected(date)
-                        }
-                    )
-                    if(selectedDate==null){
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = red
-
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "Tap on Date to View Attendance",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
-                                )
+                    Box(
+                        modifier = Modifier
+                            .weight(0.75f)
+                            .fillMaxWidth()
+                    ) {
+                        CalendarGrid(
+                            currentMonth = currentMonth,
+                            selectedDate = selectedDate,
+                            attendanceData = attendanceData,
+                            onDateSelected = { date ->
+                                selectedDate = date
+                                onDateSelected(date)
                             }
-                        }
+                        )
                     }
-
-                    // Selected Date Card
-                    selectedDate?.let { date ->
-                        val attendanceInfo = attendanceData.summary.attendance.find {
-                            LocalDate.parse(it.transDate) == date
-                        }
-
-                        if (attendanceInfo != null) {
+                    Box(
+                        modifier = Modifier
+                            .weight(0.25f)  // Give 40% of the remaining space to details
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedDate == null) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(),
+                                    .padding(vertical = 4.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = when (attendanceInfo.status) {
-                                        "present" -> Color(0xFF81C784)
-                                        "wfh" -> Color(0xFF64B5F6)
-                                        "holiday" -> Color(0xFFFFD54F)
-                                        "leave" -> Color.Gray
-                                        "absent" -> Color(0xFFE57373)
-                                        "weekoff" -> Color(0xFFFFB74D)
-                                        else -> Color.LightGray
-                                    }
+                                    containerColor = red
+
                                 )
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(16.dp)
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
-                                        text = "${date.dayOfMonth}",
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        text = "Tap on Date to View Attendance",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = Color.White
                                     )
-                                    Text(
-                                        text = attendanceInfo.status.uppercase(),
-                                        fontSize = 16.sp,
-                                        color = Color.White
+                                }
+                            }
+                        }
+
+                        // Selected Date Card
+                        selectedDate?.let { date ->
+                            val attendanceInfo = attendanceData.summary.attendance.find {
+                                LocalDate.parse(it.transDate) == date
+                            }
+
+                            if (attendanceInfo != null) {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = when (attendanceInfo.status) {
+                                            "present" -> Color(0xFF81C784)
+                                            "wfh" -> Color(0xFF64B5F6)
+                                            "holiday" -> Color(0xFFFFD54F)
+                                            "leave" -> Color.Gray
+                                            "absent" -> Color(0xFFE57373)
+                                            "weekoff" -> Color(0xFFFFB74D)
+                                            else -> Color.LightGray
+                                        }
                                     )
-                                    if(attendanceInfo.footer!=null){
-                                        Text(
-                                            text = attendanceInfo.footer.toString(),
-                                            fontSize = 14.sp,
-                                            color = Color.White
-                                        )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(12.dp)
+                                            .fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.weight(1f)
+                                        ){
+                                            Text(
+                                                text = "${date.dayOfMonth}",
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = date.dayOfWeek.toString(),
+                                                fontSize = 12.sp,
+                                                color = Color.White
+                                            )
+
+                                        }
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                text = attendanceInfo.status.uppercase(),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                            if (attendanceInfo.footer != null) {
+                                                Text(
+                                                    text = attendanceInfo.footer.toString(),
+                                                    fontSize = 12.sp,
+                                                    color = Color.White,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
                                     }
-                                    Text(
-                                        text = date.dayOfWeek.toString(),
-                                        fontSize = 14.sp,
-                                        color = Color.White
-                                    )
                                 }
                             }
                         }
@@ -424,40 +458,40 @@ class CalendarPage(private val viewModel: DashBoardViewModel,private val navCont
             viewModel.fetchAttendance(context, firstDay, lastDay)
         }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(),
-            ) {
-                when (val state = attendanceState.value) {
-                    is Resource.Loading -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(),
-                            contentAlignment = Alignment.Center
-                        ) { CircularProgressIndicator() }
-                    }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(),
+        ) {
+            when (val state = attendanceState.value) {
+                is Resource.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator() }
+                }
 
-                    is Resource.Success -> {
-                        CustomCalendar(
-                            modifier = Modifier.fillMaxSize(),
-                            attendanceData = state.data,
-                            onDateSelected = { date ->
+                is Resource.Success -> {
+                    CustomCalendar(
+                        modifier = Modifier.fillMaxSize(),
+                        attendanceData = state.data,
+                        onDateSelected = { date ->
 //                                println("Selected Date: $date")
-                            },
-                            currentMonth = currentMonth,
-                            onMonthChanged = { newMonth ->
-                                currentMonth = newMonth
-                            }
-                        )
-                    }
+                        },
+                        currentMonth = currentMonth,
+                        onMonthChanged = { newMonth ->
+                            currentMonth = newMonth
+                        }
+                    )
+                }
 
-                    is Resource.Error -> {
-                        Text(text = state.message)
-                    }
+                is Resource.Error -> {
+                    Text(text = state.message)
                 }
             }
         }
+    }
 
 }

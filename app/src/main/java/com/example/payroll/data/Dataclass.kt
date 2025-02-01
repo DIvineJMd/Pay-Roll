@@ -118,3 +118,22 @@ data class StatusSummary(
     val status: String,
     val count: Int
 )
+// last entry
+data class AttendanceDTO(
+    @SerializedName("dto") val dto: DTOData
+)
+
+data class DTOData(
+    @SerializedName("id") val id: Int,
+    @SerializedName("accId") val accId: Int,
+    @SerializedName("accName") val accName: String,
+    @SerializedName("transDate") val transDate: String,
+    @SerializedName("status") val status: String,
+    @SerializedName("inTime") val inTime: String,
+    @SerializedName("outTime") val outTime: String?,  // Made nullable
+    @SerializedName("lat") val latitude: Double,
+    @SerializedName("lang") val longitude: Double,
+    @SerializedName("location") val location: String?,
+    @SerializedName("remark") val remark: String?
+)
+

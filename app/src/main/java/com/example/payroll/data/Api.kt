@@ -55,6 +55,11 @@ interface ApiService {
         @Query("dateFrom") dateFrom: String,
         @Query("dateTo") dateTo: String
     ): Response<AttendanceResponse>
+
+    @GET("attendance/last-entry")
+    suspend fun getLastAttendanceEntry(
+        @Query("accId") accId: Int
+    ): Response<AttendanceDTO>
 }
 
 

@@ -164,7 +164,7 @@ class MainActivity : ComponentActivity() {
             UserDatabase.getDatabase(applicationContext).userDao()
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val currentUser = userDao.getCurrentUser()
 
             if (currentUser != null) {
@@ -172,20 +172,35 @@ class MainActivity : ComponentActivity() {
                     try {
                         // Check if notifications are enabled
                         if (!areNotificationsEnabled(applicationContext)) {
-                            openNotificationSettings(applicationContext)
+                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
                         }
 
                         // Check remaining permissions
                         if (!hasLocationPermissions(applicationContext)) {
-                            openLocationSettings(applicationContext)
+                            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
                         }
 
                         if (!hasBackgroundPermission(applicationContext)) {
-                            openBackgroundLocationSettings(applicationContext)
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                val uri = Uri.fromParts("package", packageName, null)
+                                data = uri
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
                         }
 
                         if (!isIgnoringBatteryOptimizations()) {
-                            openBatteryOptimizationSettings()
+                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
                         }
 
                         // Check location tracking
@@ -208,39 +223,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Function to open notification settings
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun openNotificationSettings(context: Context) {
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
-
-    // Function to open location settings
-    private fun openLocationSettings(context: Context) {
-        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
-
-    // Function to open background location settings (Android 10 and above)
-    private fun openBackgroundLocationSettings(context: Context) {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            val uri = Uri.fromParts("package", context.packageName, null)
-            data = uri
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
-
-    // Function to open battery optimization settings
-    private fun openBatteryOptimizationSettings() {
-        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        startActivity(intent)
-    }
 }
