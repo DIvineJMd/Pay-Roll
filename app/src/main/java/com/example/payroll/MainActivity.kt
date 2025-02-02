@@ -1,5 +1,6 @@
 package com.example.payroll
 
+import ProfilePage
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -32,6 +33,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.payroll.DashBoardPage.Holiday
 import com.example.payroll.DashBoardPage.LeaveManagement
 import com.example.payroll.DashBoardPage.paySlip
 import com.example.payroll.UIData.CalendarPage
@@ -157,6 +159,12 @@ class MainActivity : ComponentActivity() {
                                 ) { backStackEntry ->
                                     val page = backStackEntry.arguments?.getInt("page") ?: 0
                                     LeaveManagement(navController, viewModel, applicationContext).LeaveManagementScreen(page)
+                                }
+                                composable("Holidays") {
+                                    Holiday(navController,viewModel,applicationContext).HolidayScreen()
+                                }
+                                composable("Profile") {
+                                    ProfilePage(navController,viewModel).ProfileScreen()
                                 }
                             }
 

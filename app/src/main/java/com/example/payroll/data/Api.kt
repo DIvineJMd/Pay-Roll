@@ -70,6 +70,9 @@ interface ApiService {
 
     @GET("leave/get-all")
     suspend fun getLeaveHistory(): Response<LeaveHistoryResponse>
+
+    @GET("holiday/get-all")
+    suspend fun getAllHoliday(): Response<HolidayResponse>
 }
 
 

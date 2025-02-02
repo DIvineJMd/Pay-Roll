@@ -2,6 +2,7 @@ package com.example.payroll.UIData
 
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -65,6 +66,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 
 
+@SuppressLint("InlinedApi")
 @RequiresApi(Build.VERSION_CODES.Q)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -73,92 +75,23 @@ fun LoginPage(
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var showBatteryDialog by remember { mutableStateOf(false) }
     var clicked by remember { mutableStateOf(false) }
     val loginState by viewModel.loginState.collectAsState()
 
-    // State to track permissions
-    var hasLocationPermissions by remember { mutableStateOf(false) }
-    var hasBackgroundPermission by remember { mutableStateOf(false) }
-    var hasBatteryOptimization by remember { mutableStateOf(false) }
-    var hasPermissions by remember {
-        mutableStateOf(
-            hasAllPermissions(context)
-        )
-    }
-    // Check initial permission states
-    LaunchedEffect(Unit) {
-        checkInitialPermissions(context) { location, background, battery ->
-            hasLocationPermissions = location
-            hasBackgroundPermission = background
-            hasBatteryOptimization = battery
-
-        }
-    }
-
-    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasBackgroundPermission = isGranted
-        if (isGranted && !hasBatteryOptimization) {
-            showBatteryDialog = true
-        }
-    }
-
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val areGranted = permissions.values.all { it }
-        hasLocationPermissions = areGranted
-        if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-    }
     val notificationPermission = rememberPermissionState(
         permission = Manifest.permission.POST_NOTIFICATIONS
     )
-    // Request permissions on first launch
-    LaunchedEffect(Unit) {
-        requestPermissionsInSequence(
-            context = context,
-            locationLauncher = locationPermissionLauncher,
-            backgroundLauncher = backgroundPermissionLauncher,
-            hasLocation = hasLocationPermissions,
-            hasBackground = hasBackgroundPermission,
-            hasBattery = hasBatteryOptimization,
-            hasNotificationPermission = notificationPermission.status.isGranted,
-            requestNotificationPermission = {
-                notificationPermission.launchPermissionRequest()
-            }
-        ) {
-            showBatteryDialog = true
-        }
-    }
 
-    // Battery optimization dialog
-    if (showBatteryDialog) {
-        AlertDialog(
-            onDismissRequest = { showBatteryDialog = false },
-            title = { Text("Battery Optimization") },
-            text = { Text("For reliable location tracking, please disable battery optimization for this app.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showBatteryDialog = false
-                        context.requestDisableBatteryOptimization()
-                        hasBatteryOptimization = true
-                        hasPermissions=  hasAllPermissions(context)
-                    }
-                ) {
-                    Text("DISABLE")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBatteryDialog = false }) {
-                    Text("LATER")
-                }
+
+    LaunchedEffect(Unit) {
+        if (!notificationPermission.status.isGranted) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notificationPermission.launchPermissionRequest()
+            } else {
+                openNotificationSettings(context)
             }
-        )
+        }
+
     }
 
 
@@ -315,15 +248,18 @@ fun LoginPage(
                                     color = Color.White
                                 )
                             }
+
                             clicked && loginState is Resource.Error -> {
                                 clicked = false
-                                val errorMessage = (loginState as? Resource.Error)?.message?.let { msg ->
-                                    val errorRegex = """"message":"(.*?)"""".toRegex()
-                                    val matchResult = errorRegex.find(msg)
-                                    matchResult?.groups?.get(1)?.value ?: "Invalid credential"
-                                } ?: "Invalid credential"
+                                val errorMessage =
+                                    (loginState as? Resource.Error)?.message?.let { msg ->
+                                        val errorRegex = """"message":"(.*?)"""".toRegex()
+                                        val matchResult = errorRegex.find(msg)
+                                        matchResult?.groups?.get(1)?.value ?: "Invalid credential"
+                                    } ?: "Invalid credential"
                                 Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
                             }
+
                             clicked && loginState is Resource.Success<*> -> {
                                 val successMessage = (loginState as Resource.Success<String>).data
                                 Text(text = successMessage)
@@ -334,6 +270,7 @@ fun LoginPage(
                                 Log.d("Success", "Login Successful")
                                 clicked = false
                             }
+
                             else -> {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("Log in", style = MaterialTheme.typography.titleMedium)

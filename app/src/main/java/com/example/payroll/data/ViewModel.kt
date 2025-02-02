@@ -56,6 +56,9 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     private val _leaveHistory = MutableLiveData<Resource<List<LeaveHistoryItem>>>()
     val leaveHistory: LiveData<Resource<List<LeaveHistoryItem>>> get() = _leaveHistory
 
+    private val _Holiday = MutableLiveData<Resource<List<HolidayItem>>>()
+    val Holiday: LiveData<Resource<List<HolidayItem>>> get() = _Holiday
+
     private var authToken: String? = null
 
     val locations: StateFlow<List<com.example.payroll.database.LocationRequest>> =
@@ -97,14 +100,33 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
             }
         }
     }
-
+    fun fetchHolidays(context: Context) {
+        _leaveHistory.value = Resource.Loading
+        viewModelScope.launch {
+            try {
+                val token = getAuthToken(context)
+                if (token.isNullOrEmpty()) {
+                    _Holiday.value = Resource.Error("Token is missing. Please login again.")
+                    return@launch
+                }
+                val response = ApiClient.getInstance(token).getAllHoliday()
+                if (response.isSuccessful && response.body() != null) {
+                    _Holiday.value = Resource.Success(response.body()!!.holidayList)
+                } else {
+                    _Holiday.value = Resource.Error("Failed to fetch leave history")
+                }
+            } catch (e: Exception) {
+                _Holiday.value = Resource.Error(e.message ?: "An error occurred")
+            }
+        }
+    }
     fun fetchLeaveHistory(context: Context) {
         _leaveHistory.value = Resource.Loading
         viewModelScope.launch {
             try {
                 val token = getAuthToken(context)
                 if (token.isNullOrEmpty()) {
-                    _attendanceState.value = Resource.Error("Token is missing. Please login again.")
+                    _leaveHistory.value = Resource.Error("Token is missing. Please login again.")
                     return@launch
                 }
                 val response = ApiClient.getInstance(token).getLeaveHistory()

@@ -25,7 +25,8 @@ import com.example.payroll.components.DashBoardCard
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    onCalendarClick: () -> Unit
+    onCalendarClick: () -> Unit,
+    onAttendanceClick: () -> Unit
 ) {
 
     LazyVerticalGrid(
@@ -38,7 +39,9 @@ fun DashboardScreen(
         item {
             DashBoardCard(
                 modifier = Modifier,
-                onClick = { /*TODO*/ },
+                onClick = {
+                    onAttendanceClick()
+                },
                 name = "Attendance",
                 id = R.drawable.attendance
             )
@@ -46,7 +49,7 @@ fun DashboardScreen(
         item {
             DashBoardCard(
                 modifier = Modifier,
-                onClick = { /*TODO*/ },
+                onClick = { navController.navigate("Profile")},
                 name = "Profile",
                 id = R.drawable.user
             )
@@ -72,7 +75,7 @@ fun DashboardScreen(
         item {
             DashBoardCard(
                 modifier = Modifier,
-                onClick = { /*TODO*/ },
+                onClick = { navController.navigate("Holidays") },
                 name = "Holidays",
                 id = R.drawable.holidays
             )

@@ -166,3 +166,23 @@ data class LeaveHistoryItem(
     @SerializedName("lastUserName")
     val lastUserName: String?
 )
+// Holiday
+data class HolidayResponse(
+    @SerializedName("list")
+    val holidayList: List<HolidayItem>
+)
+
+// Represents each holiday item in the list
+data class HolidayItem(
+    @SerializedName("id")
+    val id: Int,
+
+    @SerializedName("date")
+    val date: String,
+
+    @SerializedName("title")
+    val title: String,
+
+    @SerializedName("remark")
+    val remark: String
+)

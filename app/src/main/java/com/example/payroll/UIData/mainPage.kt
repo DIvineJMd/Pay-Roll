@@ -69,7 +69,8 @@ import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition",
+@SuppressLint(
+    "UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition",
     "InlinedApi"
 )
 @Composable
@@ -130,9 +131,10 @@ fun MainPage(
         null -> {
 
         }
+
         else -> {
             // Handle when user data is available
-          viewModel.fetchLastAttendanceEntry(user!!.empId,context)
+            viewModel.fetchLastAttendanceEntry(user!!.empId, context)
         }
     }
     // Check initial permission states
@@ -459,13 +461,15 @@ fun MainPage(
                                 is Resource.Loading -> {
                                     CircularProgressIndicator()
                                 }
+
                                 is Resource.Success -> {
                                     val attendance = state.data
 
                                     PunchInCircleButton(
                                         onClick = {
                                             if ((attendance.dto.inTime.isEmpty() && (attendance.dto.outTime?.isEmpty() != false)) ||
-                                                (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))) {
+                                                (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))
+                                            ) {
                                                 navHostController.navigate("Capture")
                                             } else {
                                                 showBottomSheet = true
@@ -475,6 +479,7 @@ fun MainPage(
                                                 (attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true)
                                     )
                                 }
+
                                 is Resource.Error -> {
                                     // Handle error state if needed
                                     Log.e("MainPage", "Attendance fetch error: ${state.message}")
@@ -493,7 +498,7 @@ fun MainPage(
                                         painter = painterResource(R.drawable.punchintime),
                                         contentDescription = "Punch In Time",
                                     )
-                                    when(val state = attendanceEntryState){
+                                    when (val state = attendanceEntryState) {
                                         is Resource.Loading -> {
                                             Text(text = "Loading...")
                                         }
@@ -502,12 +507,15 @@ fun MainPage(
                                             Text(text = "Error")
 
                                         }
-                                        is Resource.Success ->{
-                                            state.data.dto.inTime?.let{ Text(
-                                                text = it,
+
+                                        is Resource.Success -> {
+                                            state.data.dto.inTime?.let {
+                                                Text(
+                                                    text = it,
 //                                            fontSize = 20.sp,
-                                                style = MaterialTheme.typography.titleSmall
-                                            )}
+                                                    style = MaterialTheme.typography.titleSmall
+                                                )
+                                            }
                                         }
                                     }
                                     Text(
@@ -522,7 +530,7 @@ fun MainPage(
                                         painter = painterResource(R.drawable.punchouttime),
                                         contentDescription = "Punch Out Time",
                                     )
-                                    when(val state = attendanceEntryState){
+                                    when (val state = attendanceEntryState) {
                                         is Resource.Loading -> {
                                             Text(text = "Loading...")
                                         }
@@ -531,11 +539,12 @@ fun MainPage(
                                             Text(text = "Error")
 
                                         }
-                                        is Resource.Success ->{
+
+                                        is Resource.Success -> {
                                             state.data.dto.outTime?.let {
                                                 Text(
                                                     text = it,
-                                        //                                            fontSize = 20.sp,
+                                                    //                                            fontSize = 20.sp,
                                                     style = MaterialTheme.typography.titleSmall
                                                 )
                                             }
@@ -556,13 +565,19 @@ fun MainPage(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            DashboardScreen(Modifier, navHostController) {
+                            DashboardScreen(Modifier, navHostController, onCalendarClick = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(
                                         pagerState.currentPage + 1
                                     )
                                 }
-                            }
+                            }, onAttendanceClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(
+                                        pagerState.currentPage - 1
+                                    )
+                                }
+                            })
                         }
                     }
 
@@ -627,7 +642,7 @@ fun MainPage(
                                     accId = it,
                                     transDate = transDate,
                                     outTime = outTime,
-                                    remark = remark
+                                    remark = "android_v_3 $remark"
                                 )
                             }?.let {
                                 viewModel.punchOut(
