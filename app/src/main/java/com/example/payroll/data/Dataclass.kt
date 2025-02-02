@@ -137,3 +137,32 @@ data class DTOData(
     @SerializedName("remark") val remark: String?
 )
 
+//Leave Request
+data class LeaveRequest(
+    @SerializedName("accId") val accId: String,
+    @SerializedName("date") val date: String,
+    @SerializedName("remark") val remark: String,
+    @SerializedName("leaveType") val leaveType: String
+)
+// Leave History
+data class LeaveHistoryResponse(
+    @SerializedName("list")
+    val leaveList: List<LeaveHistoryItem>
+)
+
+data class LeaveHistoryItem(
+    @SerializedName("date")
+    val date: String,
+    @SerializedName("remark")
+    val remark: String,
+    @SerializedName("leaveType")
+    val leaveType: String,
+    @SerializedName("status")
+    val status: String,
+    @SerializedName("lastStatusDate")
+    val lastStatusDate: String?,
+    @SerializedName("reqDate")
+    val reqDate: String,
+    @SerializedName("lastUserName")
+    val lastUserName: String?
+)

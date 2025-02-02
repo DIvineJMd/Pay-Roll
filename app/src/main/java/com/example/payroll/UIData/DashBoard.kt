@@ -54,7 +54,8 @@ fun DashboardScreen(
         item {
             DashBoardCard(
                 modifier = Modifier,
-                onClick = { /*TODO*/ },
+                onClick = {navController.navigate("LeaveManagement/0")
+                },
                 name = "Leave Request",
                 id = R.drawable.leaverequest
             )
@@ -62,7 +63,8 @@ fun DashboardScreen(
         item {
             DashBoardCard(
                 modifier = Modifier,
-                onClick = { /*TODO*/ },
+                onClick = { navController.navigate("LeaveManagement/1")
+                },
                 name = "Leave History",
                 id = R.drawable.leavehistory
             )

@@ -11,6 +11,8 @@ import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.MutableState
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.example.payroll.database.AttendanceRequest
 import com.example.payroll.database.User
 import com.example.payroll.database.UserRepository
@@ -51,6 +53,9 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     private val _userData = MutableStateFlow<User?>(null)
     val userData: StateFlow<User?> = _userData
 
+    private val _leaveHistory = MutableLiveData<Resource<List<LeaveHistoryItem>>>()
+    val leaveHistory: LiveData<Resource<List<LeaveHistoryItem>>> get() = _leaveHistory
+
     private var authToken: String? = null
 
     val locations: StateFlow<List<com.example.payroll.database.LocationRequest>> =
@@ -61,7 +66,6 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
                 initialValue = emptyList()
             )
     fun fetchLastAttendanceEntry(accId: Int, context: Context) {
-        println("HereAttendance=======================================>$accId")
         viewModelScope.launch {
             try {
                 _attendanceEntry.value = Resource.Loading
@@ -94,6 +98,26 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
     }
 
+    fun fetchLeaveHistory(context: Context) {
+        _leaveHistory.value = Resource.Loading
+        viewModelScope.launch {
+            try {
+                val token = getAuthToken(context)
+                if (token.isNullOrEmpty()) {
+                    _attendanceState.value = Resource.Error("Token is missing. Please login again.")
+                    return@launch
+                }
+                val response = ApiClient.getInstance(token).getLeaveHistory()
+                if (response.isSuccessful && response.body() != null) {
+                    _leaveHistory.value = Resource.Success(response.body()!!.leaveList)
+                } else {
+                    _leaveHistory.value = Resource.Error("Failed to fetch leave history")
+                }
+            } catch (e: Exception) {
+                _leaveHistory.value = Resource.Error(e.message ?: "An error occurred")
+            }
+        }
+    }
     fun login(username: String, password: String, context: Context) {
         _loginState.value = Resource.Loading
         viewModelScope.launch {
@@ -276,6 +300,48 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 //            }
 //        }
 //    }
+fun submitLeave(date:String,remark:String,leavetype:String, context: Context) {
+    _Post.value = Resource.Loading
+    viewModelScope.launch {
+        try {
+            val token = getAuthToken(context)
+            if (token.isNullOrEmpty()) {
+                _Post.value = Resource.Error("Token is missing. Please login again.")
+                return@launch
+            }
+            if(userData.value?.empId == null){
+                 return@launch
+            }
+            val leaveRequest = LeaveRequest(
+                accId = userData.value?.empId.toString(),
+                remark = remark,
+                leaveType = leavetype,
+                date = date
+            )
+            println(leaveRequest)
+            val apiService = ApiClient.getInstance(token)
+            val response = apiService.submitLeaveRequest(leaveRequest)
+
+            if (response.isSuccessful) {
+                _Post.value = Resource.Success("Leave request submitted successfully!")
+                Log.d("LeaveRequest", "Leave submitted successfully!")
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                _Post.value = Resource.Error("Failed to submit leave: $errorBody")
+                Log.e("LeaveRequest", "Failed: $errorBody")
+            }
+        } catch (e: HttpException) {
+            _Post.value = Resource.Error("HTTP error occurred: ${e.message()}")
+            Log.e("LeaveRequest", "HTTP Error: ${e.message()}")
+        } catch (e: IOException) {
+            _Post.value = Resource.Error("Network error occurred: ${e.message}")
+            Log.e("LeaveRequest", "Network Error: ${e.message}")
+        } catch (e: Exception) {
+            _Post.value = Resource.Error("An unexpected error occurred: ${e.message}")
+            Log.e("LeaveRequest", "Unexpected Error: ${e.message}")
+        }
+    }
+}
 
     suspend fun getAuthToken(context: Context): String? {
         val data = userRepository.getUser()

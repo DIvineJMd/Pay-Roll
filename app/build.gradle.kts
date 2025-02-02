@@ -44,7 +44,8 @@ android {
 
 dependencies {
     implementation(libs.accompanist.permissions)
-
+    //noinspection GradleDependency
+    implementation (libs.androidx.runtime.livedata)
     implementation (libs.play.services.location)
     implementation( libs.androidx.work.runtime.ktx.v281)
     implementation( libs.play.services.location.v2101)

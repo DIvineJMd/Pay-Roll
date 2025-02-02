@@ -27,9 +27,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.payroll.DashBoardPage.LeaveManagement
 import com.example.payroll.DashBoardPage.paySlip
 import com.example.payroll.UIData.CalendarPage
 import com.example.payroll.UIData.CameraCapture
@@ -147,6 +150,13 @@ class MainActivity : ComponentActivity() {
                                 composable("Calendar") {
                                     dashBoardViewModel.fetchUserData()
                                    CalendarPage(dashBoardViewModel,navController).CalendarScreen(applicationContext)
+                                }
+                                composable(
+                                    route = "LeaveManagement/{page}",
+                                    arguments = listOf(navArgument("page") { type = NavType.IntType })
+                                ) { backStackEntry ->
+                                    val page = backStackEntry.arguments?.getInt("page") ?: 0
+                                    LeaveManagement(navController, viewModel, applicationContext).LeaveManagementScreen(page)
                                 }
                             }
 

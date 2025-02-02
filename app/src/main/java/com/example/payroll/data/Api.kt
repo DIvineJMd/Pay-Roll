@@ -5,12 +5,14 @@ import com.example.payroll.database.AttendanceRequest
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -45,6 +47,11 @@ interface ApiService {
         @Part image: MultipartBody.Part
     ): Call<Void>
 
+    @POST("leave/save")
+    suspend fun submitLeaveRequest(
+        @Body leaveRequest: LeaveRequest
+    ): Response<ResponseBody>
+
     @PUT("attendance/update-outtime")
     fun outTime(@Body outData: OutData): Call<Void>
 
@@ -60,6 +67,9 @@ interface ApiService {
     suspend fun getLastAttendanceEntry(
         @Query("accId") accId: Int
     ): Response<AttendanceDTO>
+
+    @GET("leave/get-all")
+    suspend fun getLeaveHistory(): Response<LeaveHistoryResponse>
 }
 
 
