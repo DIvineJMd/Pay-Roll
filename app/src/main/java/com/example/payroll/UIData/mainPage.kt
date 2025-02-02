@@ -51,7 +51,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.navigation.NavController
 import com.example.payroll.Worker.areNotificationsEnabled
 import com.example.payroll.Worker.checkGPSStatus
+import com.example.payroll.Worker.handleLocationTracking
 import com.example.payroll.Worker.requestGPSEnable
+import com.example.payroll.Worker.stopLocationService
 import com.example.payroll.components.CustomBottomBar
 import com.example.payroll.components.PunchInCircleButton
 import com.example.payroll.components.SlideToUnlock
@@ -123,13 +125,13 @@ fun MainPage(
     }
     var selectedItem by remember { mutableStateOf(0) }
     var showNotificationbox by remember { mutableStateOf(false) }
+
     val user by viewModel.userData.collectAsState()
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
     }
     when (user) {
         null -> {
-
         }
 
         else -> {
@@ -204,50 +206,96 @@ fun MainPage(
             showBatteryDialog = true
         }
     }
-    LaunchedEffect(hasPermissions, isTracking) {
+    LaunchedEffect(Unit) {
+        // Recalculate hasPermissions when the app starts
+        hasPermissions = hasAllPermissions(context)
+    }
+    LaunchedEffect(
+        hasPermissions,
+        gpsStatus,
+        user?.locTracking,
+        isTracking,
+        showBottomSheet,
+        showNotificationbox,
+        showDialog,
+        showBatteryDialog,
+        hasLocationPermissions,
+        hasBackgroundPermission
+    ) {
+        println("Entereddddddddddddddddddddddddd $hasPermissions")
+        when (val state = attendanceEntryState) {
+            is Resource.Error -> {}
+            is Resource.Loading -> {}
+            is Resource.Success -> {
+                val attendance = state.data
+                println("Attendance: $attendance")
+                // Calculate punch status
+                val isPunchedIn =
+                    attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
+                val isPunchedOut =
+                    attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true
 
-        println("-----> $hasPermissions $isTracking")
-        if (hasPermissions || !isTracking) {
-            // Start the location service only if not already tracking
-            println("Starting the service as permissions are granted and tracking is not active")
-
-            val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
-                action = "START_TRACKING"
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
-            println("Started ======>")
-            // Update state and shared preferences
-            isTracking = true
-            context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean("is_tracking", true)
-                .apply()
-
-        } else if (!hasPermissions && isTracking) {
-            println("permission revoked---------->")
-            requestPermissionsInSequence(
-                context = context,
-                locationLauncher = locationPermissionLauncher,
-                backgroundLauncher = backgroundPermissionLauncher,
-                hasLocation = hasLocationPermissions,
-                hasBackground = hasBackgroundPermission,
-                hasBattery = hasBatteryOptimization,
-                hasNotificationPermission = hasNotification,
-                requestNotificationPermission = {
-                    notificationPermission.launchPermissionRequest()
+                // Handle tracking with consolidated logic
+                if (hasPermissions && gpsStatus) {
+                    handleLocationTracking(
+                        context = context,
+                        trackingPreference = user?.locTracking,
+                        isPunchedIn = isPunchedIn,
+                        isPunchedOut = isPunchedOut,
+                        hasPermissions = hasPermissions
+                    )
+                } else {
+                    stopLocationService(context)
                 }
-            ) {
-                showBatteryDialog = true
             }
-
         }
     }
 
+//    LaunchedEffect(hasPermissions, isTracking) {
+//
+//        println("-----> $hasPermissions $isTracking")
+//        if ((hasPermissions || !isTracking) && user?.locTracking == "ALWAYS") {
+//            // Start the location service only if not already tracking
+//            println("Starting the service as permissions are granted and tracking is not active")
+//
+//            val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
+//                action = "START_TRACKING"
+//            }
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                context.startForegroundService(serviceIntent)
+//            } else {
+//                context.startService(serviceIntent)
+//            }
+//            println("Started ======>")
+//            // Update state and shared preferences
+//            isTracking = true
+//            context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
+//                .edit()
+//                .putBoolean("is_tracking", true)
+//                .apply()
+//
+//        } else if (!hasPermissions && isTracking) {
+//            println("permission revoked---------->")
+//            requestPermissionsInSequence(
+//                context = context,
+//                locationLauncher = locationPermissionLauncher,
+//                backgroundLauncher = backgroundPermissionLauncher,
+//                hasLocation = hasLocationPermissions,
+//                hasBackground = hasBackgroundPermission,
+//                hasBattery = hasBatteryOptimization,
+//                hasNotificationPermission = hasNotification,
+//                requestNotificationPermission = {
+//                    notificationPermission.launchPermissionRequest()
+//                }
+//            ) {
+//                showBatteryDialog = true
+//            }
+//
+//        }
+//    }
+
     // Battery optimization dialog
+    // Battery Optimization Dialog
     if (showBatteryDialog) {
         AlertDialog(
             onDismissRequest = { showBatteryDialog = false },
@@ -258,80 +306,19 @@ fun MainPage(
                     onClick = {
                         showBatteryDialog = false
                         context.requestDisableBatteryOptimization()
-                        hasBatteryOptimization = true
-                        hasPermissions = hasAllPermissions(context)
                     }
                 ) {
-                    Text("DISABLE")
+                    Text("ALLOW EXCEPTION")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showBatteryDialog = false }) {
-                    Text("LATER")
+                    Text("REMIND ME LATER")
                 }
             }
         )
     }
-//    if (showNotificationbox) {
-//        AlertDialog(
-//            onDismissRequest = {
-//                hasNotification= areNotificationsEnabled(context)
-//                if(hasNotification){
-//                    showNotificationbox=false
-//                }else{
-//                    showNotificationbox=true
-//                }
-//            },
-//            title = { Text("Notification Permission Required") },
-//            text = { Text("This app requires notification permission to track location. Please enable it in settings.") },
-//            confirmButton = {
-//                TextButton(onClick = { openNotificationSettings(context) }) {
-//                    Text("Open Settings")
-//                }
-//            },
-//
-//        )
-//    }
 
-
-//        Button(
-//            onClick = {
-//                if (hasAllPermissions(context)) {
-//                    val serviceIntent = Intent(context, LocationForegroundService::class.java).apply {
-//                        action = if (!isTracking) "START_TRACKING" else "STOP_TRACKING"
-//                    }
-//
-//                    if (!isTracking) {
-//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//                            context.startForegroundService(serviceIntent)
-//                        } else {
-//                            context.startService(serviceIntent)
-//                        }
-//                    } else {
-//                        context.stopService(serviceIntent)
-//                    }
-//
-//                    isTracking = !isTracking
-//                    context.getSharedPreferences("AppData", Context.MODE_PRIVATE)
-//                        .edit()
-//                        .putBoolean("is_tracking", isTracking)
-//                        .apply()
-//                } else {
-//                    requestPermissionsInSequence(
-//                        context,
-//                        locationPermissionLauncher,
-//                        backgroundPermissionLauncher,
-//                        hasLocationPermissions,
-//                        hasBackgroundPermission,
-//                        hasBatteryOptimization
-//                    ) {
-//                        showBatteryDialog = true
-//                    }
-//                }
-//            }
-//        ) {
-//            Text(if (isTracking) "Stop Tracking" else "Start Tracking")
-//        }
     if (showDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -691,7 +678,7 @@ fun MainPage(
             AlertDialog(
                 onDismissRequest = { showBatteryDialog = false },
                 title = { Text("Battery Optimization") },
-                text = { Text("For reliable location tracking, please disable battery optimization for this app.") },
+                text = { Text("For reliable performance, please allow an exception for this app in battery optimization settings.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -701,16 +688,17 @@ fun MainPage(
                             hasPermissions = hasAllPermissions(context)
                         }
                     ) {
-                        Text("DISABLE")
+                        Text("ALLOW ")
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showBatteryDialog = false }) {
-                        Text("LATER")
+                        Text("REMIND ME LATER")
                     }
                 }
             )
         }
+
     }
 }
 

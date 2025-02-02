@@ -138,13 +138,17 @@ fun Track(
     var fullWidth by remember { mutableIntStateOf(0) }
     val horizontalPadding = 10.dp
 
-    // Ensure these values are stable and non-zero
+    // Ensure fullWidth is valid before calculating anchors
     val startOfTrackPx = with(density) { horizontalPadding.toPx() }
     val endOfTrackPx = remember(fullWidth) {
-        with(density) { fullWidth - (horizontalPadding + Thumb.Size).toPx() }
+        if (fullWidth > 0) {
+            with(density) { fullWidth - (horizontalPadding + Thumb.Size).toPx() }
+        } else {
+            startOfTrackPx // Fallback to startOfTrackPx if fullWidth is invalid
+        }
     }
 
-    // Add bounds checking
+    // Safeguard: Ensure anchors are valid and non-empty
     val anchors = remember(startOfTrackPx, endOfTrackPx) {
         if (endOfTrackPx > startOfTrackPx) {
             mapOf(
@@ -152,7 +156,7 @@ fun Track(
                 endOfTrackPx to Anchor.End
             )
         } else {
-            mapOf(0f to Anchor.Start)
+            mapOf(startOfTrackPx to Anchor.Start) // Fallback to a single anchor
         }
     }
 
@@ -162,7 +166,7 @@ fun Track(
 
     Box(
         modifier = modifier
-            .onSizeChanged { fullWidth = it.width }
+            .onSizeChanged { fullWidth = it.width } // Update fullWidth when size changes
             .height(56.dp)
             .fillMaxWidth()
             .swipeable(
@@ -181,7 +185,6 @@ fun Track(
         content = content,
     )
 }
-
 val AlmostBlack = Color(0xFFDC2626)
 val Yellow = Color(0xFFDC2626)
 fun calculateTrackColor(swipeFraction: Float): Color {

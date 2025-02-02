@@ -44,6 +44,7 @@ import com.example.payroll.UIData.hasAllPermissions
 import com.example.payroll.UIData.hasBackgroundPermission
 import com.example.payroll.UIData.hasLocationPermissions
 import com.example.payroll.UIData.isIgnoringBatteryOptimizations
+import com.example.payroll.UIData.requestDisableBatteryOptimization
 import com.example.payroll.Worker.LocationForegroundService
 import com.example.payroll.Worker.areNotificationsEnabled
 import com.example.payroll.Worker.openNotificationSettings
@@ -215,24 +216,8 @@ class MainActivity : ComponentActivity() {
                         }
 
                         if (!isIgnoringBatteryOptimizations()) {
-                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
-                        }
-
-                        // Check location tracking
-                        val isTracking = getSharedPreferences("AppData", MODE_PRIVATE)
-                            .getBoolean("is_tracking", false)
-
-                        if (!isTracking) {
-                            val serviceIntent = Intent(applicationContext, LocationForegroundService::class.java).apply {
-                                action = "START_TRACKING"
-                            }
-                            startService(serviceIntent)
-                        } else {
-
-                        }
+                            applicationContext.requestDisableBatteryOptimization()
+                        }else{}
                     } catch (e: Exception) {
                         Log.e("MainActivity", "Error opening settings: ${e.message}")
                     }

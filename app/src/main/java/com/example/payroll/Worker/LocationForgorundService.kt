@@ -50,7 +50,7 @@ class LocationForegroundService : Service() {
         // Start periodic pending locations check
         startPendingLocationsCheck()
         startGPSStatusMonitoring()
-        initializeLocationTracking()
+
     }
 
     private fun startPendingLocationsCheck() {

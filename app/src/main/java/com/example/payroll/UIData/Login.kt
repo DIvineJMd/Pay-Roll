@@ -78,20 +78,27 @@ fun LoginPage(
     var clicked by remember { mutableStateOf(false) }
     val loginState by viewModel.loginState.collectAsState()
 
+    // Dialog states
+    var showNotificationDialog by remember { mutableStateOf(false) }
+    var showBatteryDialog by remember { mutableStateOf(false) }
+
     val notificationPermission = rememberPermissionState(
         permission = Manifest.permission.POST_NOTIFICATIONS
     )
 
-
+    // Check permissions sequentially
     LaunchedEffect(Unit) {
         if (!notificationPermission.status.isGranted) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                notificationPermission.launchPermissionRequest()
-            } else {
-                openNotificationSettings(context)
+
+            showNotificationDialog = true
+
+
+
+        } else {
+            if (!context.isIgnoringBatteryOptimizations()) {
+                showBatteryDialog = true
             }
         }
-
     }
 
 
@@ -288,6 +295,75 @@ fun LoginPage(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
+        }
+        // Notification Permission Dialog
+        if (showNotificationDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showNotificationDialog = false
+                    // Check battery optimization after handling notification
+                    if (!context.isIgnoringBatteryOptimizations()) {
+                        showBatteryDialog = true
+                    }
+                },
+                title = { Text("Notification Permission") },
+                text = { Text("This app needs notification permission to keep you updated about your attendance and important announcements.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showNotificationDialog = false
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermission.launchPermissionRequest()
+                            } else {
+                                openNotificationSettings(context)
+                            }
+                            // Check battery optimization after handling notification
+                            if (!context.isIgnoringBatteryOptimizations()) {
+                                showBatteryDialog = true
+                            }
+                        }
+                    ) {
+                        Text("ALLOW")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showNotificationDialog = false
+                            // Check battery optimization after handling notification
+                            if (!context.isIgnoringBatteryOptimizations()) {
+                                showBatteryDialog = true
+                            }
+                        }
+                    ) {
+                        Text("LATER")
+                    }
+                }
+            )
+        }
+
+        // Battery Optimization Dialog
+        if (showBatteryDialog) {
+            AlertDialog(
+                onDismissRequest = { showBatteryDialog = false },
+                title = { Text("Battery Optimization") },
+                text = { Text("For reliable Performance, please disable battery optimization for this app.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showBatteryDialog = false
+                            context.requestDisableBatteryOptimization()
+                        }
+                    ) {
+                        Text("ALLOW ")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatteryDialog = false }) {
+                        Text("REMIND ME LATER")
+                    }
+                }
+            )
         }
     }
 }
