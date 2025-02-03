@@ -225,10 +225,12 @@ fun MainPage(
         println("Entereddddddddddddddddddddddddd $hasPermissions")
         when (val state = attendanceEntryState) {
             is Resource.Error -> {}
-            is Resource.Loading -> {}
+            is Resource.Loading -> {
+                println("loading mai hu")
+            }
             is Resource.Success -> {
                 val attendance = state.data
-                println("Attendance: $attendance")
+                println("success mai abhi aaaya: $attendance")
                 // Calculate punch status
                 val isPunchedIn =
                     attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
@@ -237,6 +239,7 @@ fun MainPage(
 
                 // Handle tracking with consolidated logic
                 if (hasPermissions && gpsStatus) {
+                    println("$hasPermissions $gpsStatus")
                     handleLocationTracking(
                         context = context,
                         trackingPreference = user?.locTracking,
@@ -245,6 +248,8 @@ fun MainPage(
                         hasPermissions = hasPermissions
                     )
                 } else {
+                    println("$hasPermissions $gpsStatus")
+
                     stopLocationService(context)
                 }
             }
