@@ -72,7 +72,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 _attendanceEntry.value = Resource.Loading
-                val token = getAuthToken(context)
+                val token = if(authToken.isNullOrEmpty()){ getAuthToken(context) }else{authToken}
                 if (token.isNullOrEmpty()) {
                     _attendanceEntry.value = Resource.Error("Token is missing. Please login again.")
                     return@launch
@@ -80,7 +80,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
 
                 val apiService = ApiClient.getInstance(token)
                 val response = apiService.getLastAttendanceEntry(accId)
-
+                println("Here chanages ")
                 if (response.isSuccessful) {
                     val attendanceResponse = response.body()
                     if (attendanceResponse != null) {
@@ -104,7 +104,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         _leaveHistory.value = Resource.Loading
         viewModelScope.launch {
             try {
-                val token = getAuthToken(context)
+                val token = if(authToken.isNullOrEmpty()){ getAuthToken(context) }else{authToken}
                 if (token.isNullOrEmpty()) {
                     _Holiday.value = Resource.Error("Token is missing. Please login again.")
                     return@launch
@@ -124,7 +124,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         _leaveHistory.value = Resource.Loading
         viewModelScope.launch {
             try {
-                val token = getAuthToken(context)
+                val token = if(authToken.isNullOrEmpty()){ getAuthToken(context) }else{authToken}
                 if (token.isNullOrEmpty()) {
                     _leaveHistory.value = Resource.Error("Token is missing. Please login again.")
                     return@launch
@@ -197,7 +197,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 _attendanceState.value = Resource.Loading
-                val token = getAuthToken(context)
+                val token = if(authToken.isNullOrEmpty()){ getAuthToken(context) }else{authToken}
                 if (token.isNullOrEmpty()) {
                     _outloader.value = Resource.Error("Token is missing. Please login again.")
                     return@launch
@@ -252,7 +252,7 @@ class ViewModel(private val userRepository: UserRepository) : ViewModel() {
     _attendanceState.value = Resource.Loading
     viewModelScope.launch {
         try {
-            val token = getAuthToken(context)
+            val token = if(authToken.isNullOrEmpty()){ getAuthToken(context) }else{authToken}
             if (token.isNullOrEmpty()) {
                 _attendanceState.value = Resource.Error("Token is missing. Please login again.")
                 return@launch
@@ -326,7 +326,7 @@ fun submitLeave(date:String,remark:String,leavetype:String, context: Context) {
     _Post.value = Resource.Loading
     viewModelScope.launch {
         try {
-            val token = getAuthToken(context)
+            val token = if(authToken.isNullOrEmpty()){ getAuthToken(context) }else{authToken}
             if (token.isNullOrEmpty()) {
                 _Post.value = Resource.Error("Token is missing. Please login again.")
                 return@launch
@@ -376,8 +376,7 @@ fun submitLeave(date:String,remark:String,leavetype:String, context: Context) {
 
         // Check if the token exists
 //        val authToken = sharedPref.getString("auth_token", null)
-        val authToken= data?.token
-
+         authToken= data?.token
         // If the token exists and has expired, remove it
         if (expiryTime != null) {
             println("----> checking expriry time")

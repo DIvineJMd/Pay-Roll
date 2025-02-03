@@ -130,13 +130,18 @@ fun MainPage(
     LaunchedEffect(Unit) {
         viewModel.fetchUserData()
     }
+    var datafetchedEntery by remember { mutableStateOf(false) }
     when (user) {
         null -> {
+                println("null huaaa")
         }
 
         else -> {
-            // Handle when user data is available
-            viewModel.fetchLastAttendanceEntry(user!!.empId, context)
+//            println("there changes")
+            if(!datafetchedEntery){
+                viewModel.fetchLastAttendanceEntry(user!!.empId, context)
+                datafetchedEntery=true
+            }
         }
     }
     // Check initial permission states
@@ -161,7 +166,6 @@ fun MainPage(
         } else {
             showNotificationbox = true
         }
-        println("==========> notification $hasNotification")
     }
 
     LaunchedEffect(Unit) {
@@ -206,11 +210,13 @@ fun MainPage(
             showBatteryDialog = true
         }
     }
-    LaunchedEffect(Unit) {
-        // Recalculate hasPermissions when the app starts
+    LaunchedEffect(Unit, showDialog,showBatteryDialog,gpsStatus) {
         hasPermissions = hasAllPermissions(context)
+        println("Either showDialog, showBattery,gps , unit $hasPermissions")
     }
+    // LaunchedEffect to handle the resource state change
     LaunchedEffect(
+        attendanceEntryState, // Trigger only when attendanceEntryState changes
         hasPermissions,
         gpsStatus,
         user?.locTracking,
@@ -222,24 +228,27 @@ fun MainPage(
         hasLocationPermissions,
         hasBackgroundPermission
     ) {
-        println("Entereddddddddddddddddddddddddd $hasPermissions")
         when (val state = attendanceEntryState) {
-            is Resource.Error -> {}
+            is Resource.Error -> {
+                // Handle error state
+                println("Error loading attendance data")
+            }
             is Resource.Loading -> {
-                println("loading mai hu")
+                // Handle loading state (optional: show a loading indicator)
+                println("Loading attendance data...")
             }
             is Resource.Success -> {
+                // Only proceed when the state is Success
                 val attendance = state.data
-                println("success mai abhi aaaya: $attendance")
-                // Calculate punch status
-                val isPunchedIn =
-                    attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
-                val isPunchedOut =
-                    attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true
+                println("Attendance data received: $attendance")
 
-                // Handle tracking with consolidated logic
+                // Calculate punch status
+                val isPunchedIn = attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
+                val isPunchedOut = attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true
+
+                // Handle location tracking logic
                 if (hasPermissions && gpsStatus) {
-                    println("$hasPermissions $gpsStatus")
+                    println("Permissions and GPS are available starting service")
                     handleLocationTracking(
                         context = context,
                         trackingPreference = user?.locTracking,
@@ -248,13 +257,13 @@ fun MainPage(
                         hasPermissions = hasPermissions
                     )
                 } else {
-                    println("$hasPermissions $gpsStatus")
-
+                    println("Stopping location service as permissions or GPS are not available")
                     stopLocationService(context)
                 }
             }
         }
     }
+
 
 //    LaunchedEffect(hasPermissions, isTracking) {
 //
