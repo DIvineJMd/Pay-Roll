@@ -64,6 +64,7 @@ import com.example.payroll.database.AttendanceRequest
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -133,14 +134,13 @@ fun MainPage(
     var datafetchedEntery by remember { mutableStateOf(false) }
     when (user) {
         null -> {
-                println("null huaaa")
+            println("null huaaa")
         }
 
         else -> {
-//            println("there changes")
-            if(!datafetchedEntery){
+            if (!datafetchedEntery) {
                 viewModel.fetchLastAttendanceEntry(user!!.empId, context)
-                datafetchedEntery=true
+                datafetchedEntery = true
             }
         }
     }
@@ -183,18 +183,21 @@ fun MainPage(
             showBatteryDialog = true
         }
     }
+    var diloagBoxBackground by remember { mutableStateOf(false) }
     var remark by remember { mutableStateOf("") }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val areGranted = permissions.values.all { it }
         hasLocationPermissions = areGranted
-        if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
+        diloagBoxBackground = true
+//        if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+//        }
     }
     // Request permissions on first launch
     LaunchedEffect(Unit) {
+
         requestPermissionsInSequence(
             context = context,
             locationLauncher = locationPermissionLauncher,
@@ -210,10 +213,7 @@ fun MainPage(
             showBatteryDialog = true
         }
     }
-    LaunchedEffect(Unit, showDialog,showBatteryDialog,gpsStatus) {
-        hasPermissions = hasAllPermissions(context)
-        println("Either showDialog, showBattery,gps , unit $hasPermissions")
-    }
+
     // LaunchedEffect to handle the resource state change
     LaunchedEffect(
         attendanceEntryState, // Trigger only when attendanceEntryState changes
@@ -223,6 +223,7 @@ fun MainPage(
         isTracking,
         showBottomSheet,
         showNotificationbox,
+        diloagBoxBackground,
         showDialog,
         showBatteryDialog,
         hasLocationPermissions,
@@ -230,21 +231,25 @@ fun MainPage(
     ) {
         when (val state = attendanceEntryState) {
             is Resource.Error -> {
-                // Handle error state
+                datafetchedEntery = true
                 println("Error loading attendance data")
             }
+
             is Resource.Loading -> {
                 // Handle loading state (optional: show a loading indicator)
                 println("Loading attendance data...")
             }
+
             is Resource.Success -> {
                 // Only proceed when the state is Success
                 val attendance = state.data
                 println("Attendance data received: $attendance")
 
                 // Calculate punch status
-                val isPunchedIn = attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
-                val isPunchedOut = attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true
+                val isPunchedIn =
+                    attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
+                val isPunchedOut =
+                    attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true
 
                 // Handle location tracking logic
                 if (hasPermissions && gpsStatus) {
@@ -307,14 +312,40 @@ fun MainPage(
 //
 //        }
 //    }
+    if (diloagBoxBackground) {
+        AlertDialog(
+            onDismissRequest = { diloagBoxBackground = false },
+            title = { Text("Location Permission ") },
+            text = { Text("Please Always Allow the Location Permission in order to continue.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
 
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+
+                        }
+
+                        diloagBoxBackground = false
+                    }
+                ) {
+                    Text("ALLOW")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { diloagBoxBackground = false }) {
+                    Text("REMIND ME LATER")
+                }
+            }
+        )
+    }
     // Battery optimization dialog
     // Battery Optimization Dialog
     if (showBatteryDialog) {
         AlertDialog(
             onDismissRequest = { showBatteryDialog = false },
             title = { Text("Battery Optimization") },
-            text = { Text("For reliable location tracking, please disable battery optimization for this app.") },
+            text = { Text("For reliable Performance, please disable battery optimization for this app.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -356,6 +387,12 @@ fun MainPage(
                 }
             }
         )
+    }
+    LaunchedEffect(Unit, showDialog, diloagBoxBackground, showBatteryDialog, gpsStatus) {
+        println("Waiting..............")
+        delay(13000)
+        hasPermissions = hasAllPermissions(context)
+        println("Either showDialog, showBattery,gps , unit $hasPermissions")
     }
     Scaffold(
         containerColor = Color.Transparent,

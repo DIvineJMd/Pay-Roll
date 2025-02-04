@@ -175,55 +175,5 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onRestart() {
-        super.onRestart()
-
-        val userDao: UserDao by lazy {
-            UserDatabase.getDatabase(applicationContext).userDao()
-        }
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val currentUser = userDao.getCurrentUser()
-
-            if (currentUser != null) {
-                withContext(Dispatchers.Main) {
-                    try {
-                        // Check if notifications are enabled
-                        if (!areNotificationsEnabled(applicationContext)) {
-                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
-                        }
-
-                        // Check remaining permissions
-                        if (!hasLocationPermissions(applicationContext)) {
-                            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
-                        }
-
-                        if (!hasBackgroundPermission(applicationContext)) {
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                val uri = Uri.fromParts("package", packageName, null)
-                                data = uri
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
-                        }
-
-                        if (!isIgnoringBatteryOptimizations()) {
-                            applicationContext.requestDisableBatteryOptimization()
-                        }else{}
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "Error opening settings: ${e.message}")
-                    }
-                }
-            }
-        }
-    }
 
 }
