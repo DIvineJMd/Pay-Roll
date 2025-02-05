@@ -40,29 +40,14 @@ import com.example.payroll.UIData.CalendarPage
 import com.example.payroll.UIData.CameraCapture
 import com.example.payroll.UIData.LoginPage
 import com.example.payroll.UIData.MainPage
-import com.example.payroll.UIData.hasAllPermissions
-import com.example.payroll.UIData.hasBackgroundPermission
-import com.example.payroll.UIData.hasLocationPermissions
-import com.example.payroll.UIData.isIgnoringBatteryOptimizations
-import com.example.payroll.UIData.requestDisableBatteryOptimization
-import com.example.payroll.Worker.LocationForegroundService
-import com.example.payroll.Worker.areNotificationsEnabled
-import com.example.payroll.Worker.openNotificationSettings
 import com.example.payroll.data.DashBoardViewModel
 import com.example.payroll.data.DashBoardViewModelFactory
 import com.example.payroll.ui.theme.PayRollTheme
 import com.example.payroll.data.ViewModel
 import com.example.payroll.data.ViewModelFactory
-import com.example.payroll.database.LocationDao
-import com.example.payroll.database.UserDao
 import com.example.payroll.database.UserDatabase
 import com.example.payroll.database.UserRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.Dispatcher
 
 class MainActivity : ComponentActivity() {
 

@@ -179,21 +179,19 @@ fun MainPage(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasBackgroundPermission = isGranted
-        if (isGranted && !hasBatteryOptimization) {
-            showBatteryDialog = true
-        }
+
     }
-    var diloagBoxBackground by remember { mutableStateOf(false) }
     var remark by remember { mutableStateOf("") }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val areGranted = permissions.values.all { it }
         hasLocationPermissions = areGranted
-        diloagBoxBackground = true
-//        if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-//        }
+
+        if (areGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+
     }
     // Request permissions on first launch
     LaunchedEffect(Unit) {
@@ -210,7 +208,7 @@ fun MainPage(
                 notificationPermission.launchPermissionRequest()
             }
         ) {
-            showBatteryDialog = true
+//            showBatteryDialog = true
         }
     }
 
@@ -223,7 +221,6 @@ fun MainPage(
         isTracking,
         showBottomSheet,
         showNotificationbox,
-        diloagBoxBackground,
         showDialog,
         showBatteryDialog,
         hasLocationPermissions,
@@ -266,6 +263,8 @@ fun MainPage(
                     stopLocationService(context)
                 }
             }
+
+            else -> {}
         }
     }
 
@@ -312,33 +311,7 @@ fun MainPage(
 //
 //        }
 //    }
-    if (diloagBoxBackground) {
-        AlertDialog(
-            onDismissRequest = { diloagBoxBackground = false },
-            title = { Text("Location Permission ") },
-            text = { Text("Please Always Allow the Location Permission in order to continue.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-
-                        }
-
-                        diloagBoxBackground = false
-                    }
-                ) {
-                    Text("ALLOW")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { diloagBoxBackground = false }) {
-                    Text("REMIND ME LATER")
-                }
-            }
-        )
-    }
     // Battery optimization dialog
     // Battery Optimization Dialog
     if (showBatteryDialog) {
@@ -388,7 +361,7 @@ fun MainPage(
             }
         )
     }
-    LaunchedEffect(Unit, showDialog, diloagBoxBackground, showBatteryDialog, gpsStatus) {
+    LaunchedEffect(Unit, showDialog, showBatteryDialog, gpsStatus) {
         println("Waiting..............")
         delay(13000)
         hasPermissions = hasAllPermissions(context)
@@ -505,6 +478,10 @@ fun MainPage(
 
                                     PunchInCircleButton(
                                         onClick = {
+                                            if (!context.isIgnoringBatteryOptimizations()) {
+                                                showBatteryDialog = true
+                                            }
+
                                             if ((attendance.dto.inTime.isEmpty() && (attendance.dto.outTime?.isEmpty() != false)) ||
                                                 (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))
                                             ) {
