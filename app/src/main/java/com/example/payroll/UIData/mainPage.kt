@@ -85,7 +85,6 @@ fun MainPage(
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState(pageCount = { 3 })
-    var showBatteryDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     // State to track permissions
     var hasLocationPermissions by remember { mutableStateOf(false) }
@@ -98,7 +97,7 @@ fun MainPage(
         )
     }
     val attendanceEntryState by viewModel.attendanceEntry.collectAsState()
-
+    var transdate by remember { mutableStateOf("") }
     val notificationPermission = rememberPermissionState(
         permission = Manifest.permission.POST_NOTIFICATIONS
     )
@@ -222,7 +221,6 @@ fun MainPage(
         showBottomSheet,
         showNotificationbox,
         showDialog,
-        showBatteryDialog,
         hasLocationPermissions,
         hasBackgroundPermission
     ) {
@@ -241,7 +239,7 @@ fun MainPage(
                 // Only proceed when the state is Success
                 val attendance = state.data
                 println("Attendance data received: $attendance")
-
+                transdate = attendance.dto.transDate
                 // Calculate punch status
                 val isPunchedIn =
                     attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime.isNullOrEmpty()
@@ -314,28 +312,6 @@ fun MainPage(
 
     // Battery optimization dialog
     // Battery Optimization Dialog
-    if (showBatteryDialog) {
-        AlertDialog(
-            onDismissRequest = { showBatteryDialog = false },
-            title = { Text("Battery Optimization") },
-            text = { Text("For reliable Performance, please disable battery optimization for this app.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showBatteryDialog = false
-                        context.requestDisableBatteryOptimization()
-                    }
-                ) {
-                    Text("ALLOW EXCEPTION")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBatteryDialog = false }) {
-                    Text("REMIND ME LATER")
-                }
-            }
-        )
-    }
 
     if (showDialog) {
         AlertDialog(
@@ -361,7 +337,7 @@ fun MainPage(
             }
         )
     }
-    LaunchedEffect(Unit, showDialog, showBatteryDialog, gpsStatus) {
+    LaunchedEffect(Unit, showDialog,  gpsStatus) {
         println("Waiting..............")
         delay(13000)
         hasPermissions = hasAllPermissions(context)
@@ -475,12 +451,13 @@ fun MainPage(
 
                                 is Resource.Success -> {
                                     val attendance = state.data
-
+                                    transdate = attendance.dto.transDate
                                     PunchInCircleButton(
                                         onClick = {
                                             if (!context.isIgnoringBatteryOptimizations()) {
-                                                showBatteryDialog = true
-                                            }
+                                                context.requestDisableBatteryOptimization()
+
+                                            }else{
 
                                             if ((attendance.dto.inTime.isEmpty() && (attendance.dto.outTime?.isEmpty() != false)) ||
                                                 (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))
@@ -489,6 +466,7 @@ fun MainPage(
                                             } else {
                                                 showBottomSheet = true
                                             }
+                                          }
                                         },
                                         InPunch = (attendance.dto.inTime.isEmpty() && attendance.dto.outTime.isNullOrEmpty()) ||
                                                 (attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true)
@@ -644,7 +622,6 @@ fun MainPage(
                         maxLines = 2,
                         shape = RoundedCornerShape(12.dp)
                     )
-                    val transDate = dateFormat.format(currentDate)
                     val outTime = dateTimeFormat.format(currentDate)
                     println("Out Time: $outTime")
                     SlideToUnlock(
@@ -655,7 +632,7 @@ fun MainPage(
                             viewModel.userData.value?.empId?.let {
                                 OutData(
                                     accId = it,
-                                    transDate = transDate,
+                                    transDate = transdate,
                                     outTime = outTime,
                                     remark = "android_v_3 $remark"
                                 )
@@ -684,6 +661,7 @@ fun MainPage(
 
                         is Resource.Success -> {
                             isLoading = false
+                            datafetchedEntery=false
                             Toast.makeText(context, "Punch Out Successfully", Toast.LENGTH_SHORT)
                                 .show()
 
@@ -702,30 +680,7 @@ fun MainPage(
                 }
             }
         }
-        if (showBatteryDialog) {
-            AlertDialog(
-                onDismissRequest = { showBatteryDialog = false },
-                title = { Text("Battery Optimization") },
-                text = { Text("For reliable performance, please allow an exception for this app in battery optimization settings.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showBatteryDialog = false
-                            context.requestDisableBatteryOptimization()
-                            hasBatteryOptimization = true
-                            hasPermissions = hasAllPermissions(context)
-                        }
-                    ) {
-                        Text("ALLOW ")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showBatteryDialog = false }) {
-                        Text("REMIND ME LATER")
-                    }
-                }
-            )
-        }
+
 
     }
 }
@@ -834,7 +789,6 @@ fun hasBackgroundPermission(context: Context): Boolean {
 fun hasAllPermissions(context: Context): Boolean {
     return hasLocationPermissions(context) &&
             hasBackgroundPermission(context) &&
-            context.isIgnoringBatteryOptimizations() &&
             areNotificationsEnabled(context)
 }
 
