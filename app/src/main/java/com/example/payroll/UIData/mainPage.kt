@@ -584,7 +584,6 @@ fun MainPage(
             }
         }
         val currentDate = Date()
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val sheetState = rememberModalBottomSheetState()
         val scope = rememberCoroutineScope()
@@ -730,6 +729,7 @@ fun requestPermissionsInSequence(
         }
 
         !hasBackground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+            println("mai bhi launching")
             backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
 

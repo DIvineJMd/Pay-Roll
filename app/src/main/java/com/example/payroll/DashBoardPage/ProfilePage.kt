@@ -154,7 +154,7 @@ class ProfilePage(private val navController: NavController, private val viewMode
                     MenuButton(
                         icon = Icons.Default.Info,
                         text = "Help & Support",
-                        onClick = { /* Handle click */ }
+                        onClick = { navController.navigate("Help") }
                     )
                 }
             }
