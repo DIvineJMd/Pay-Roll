@@ -59,7 +59,7 @@ class Holiday(
                 CenterAlignedTopAppBar(
                     title = { Text("Holidays Calendar") },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = {  navController.navigateUp()  }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
                     },

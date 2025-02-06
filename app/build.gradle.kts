@@ -43,6 +43,7 @@ android {
 }
 
 dependencies {
+    implementation (libs.androidx.material)
     implementation(libs.accompanist.permissions)
     //noinspection GradleDependency
     implementation (libs.androidx.runtime.livedata)

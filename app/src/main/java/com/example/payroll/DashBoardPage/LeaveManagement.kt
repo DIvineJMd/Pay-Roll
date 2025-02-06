@@ -110,7 +110,7 @@ class LeaveManagement
                 TopAppBar(
                     title = { Text("Leave Management") },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack()}) {
+                        IconButton(onClick = {  navController.navigateUp() }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
                     },

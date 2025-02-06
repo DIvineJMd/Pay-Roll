@@ -33,6 +33,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.payroll.DashBoardPage.HelpAndSupport
 import com.example.payroll.DashBoardPage.Holiday
 import com.example.payroll.DashBoardPage.LeaveManagement
 import com.example.payroll.DashBoardPage.paySlip
@@ -152,6 +153,7 @@ class MainActivity : ComponentActivity() {
                                 composable("Profile") {
                                     ProfilePage(navController,viewModel).ProfileScreen()
                                 }
+                                composable("Help") { HelpAndSupport().PermissionsScreen(applicationContext,navController)}  }
                             }
 
                     }
@@ -161,4 +163,3 @@ class MainActivity : ComponentActivity() {
     }
 
 
-}

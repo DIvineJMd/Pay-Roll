@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import androidx.wear.compose.material.ExperimentalWearMaterialApi
 import androidx.wear.compose.material.FractionalThreshold
+import androidx.wear.compose.material.ResistanceConfig
 import androidx.wear.compose.material.SwipeProgress
 import androidx.wear.compose.material.SwipeableDefaults
 import androidx.wear.compose.material.SwipeableState
@@ -113,16 +114,18 @@ fun SlideToUnlock(
 @OptIn(ExperimentalWearMaterialApi::class)
 fun calculateSwipeFraction(progress: SwipeProgress<Anchor>): Float {
     return try {
-        when (progress.from) {
-            progress.to -> if (progress.from == Anchor.Start) 0f else 1f
-            Anchor.Start -> progress.fraction
-            else -> 1f - progress.fraction
+        when {
+            progress.from == progress.to ->
+                if (progress.from == Anchor.Start) 0f else 1f
+            progress.from == Anchor.Start ->
+                progress.fraction.coerceIn(0f, 1f)
+            else ->
+                (1f - progress.fraction).coerceIn(0f, 1f)
         }
     } catch (e: Exception) {
         0f  // Safe default
     }
 }
-
 enum class Anchor { Start, End }
 
 @OptIn(ExperimentalWearMaterialApi::class)
@@ -138,25 +141,29 @@ fun Track(
     var fullWidth by remember { mutableIntStateOf(0) }
     val horizontalPadding = 10.dp
 
-    // Ensure fullWidth is valid before calculating anchors
+    // Calculate track bounds
     val startOfTrackPx = with(density) { horizontalPadding.toPx() }
-    val endOfTrackPx = remember(fullWidth) {
+    val endOfTrackPx = with(density) {
         if (fullWidth > 0) {
-            with(density) { fullWidth - (horizontalPadding + Thumb.Size).toPx() }
+            fullWidth - (horizontalPadding + Thumb.Size).toPx()
         } else {
-            startOfTrackPx // Fallback to startOfTrackPx if fullWidth is invalid
+            startOfTrackPx
         }
     }
 
-    // Safeguard: Ensure anchors are valid and non-empty
-    val anchors = remember(startOfTrackPx, endOfTrackPx) {
-        if (endOfTrackPx > startOfTrackPx) {
-            mapOf(
-                startOfTrackPx to Anchor.Start,
-                endOfTrackPx to Anchor.End
-            )
+    // Create anchors map with proper bounds checking
+    val anchors = remember(fullWidth, startOfTrackPx, endOfTrackPx) {
+        if (fullWidth > 0 && endOfTrackPx > startOfTrackPx) {
+            val anchorPoints = mutableMapOf<Float, Anchor>()
+            // Add start anchor
+            anchorPoints[startOfTrackPx] = Anchor.Start
+            // Add end anchor only if we have valid width
+            if (endOfTrackPx > startOfTrackPx) {
+                anchorPoints[endOfTrackPx] = Anchor.End
+            }
+            anchorPoints
         } else {
-            mapOf(startOfTrackPx to Anchor.Start) // Fallback to a single anchor
+            mapOf(0f to Anchor.Start)  // Fallback anchors
         }
     }
 
@@ -164,9 +171,14 @@ fun Track(
         derivedStateOf { calculateTrackColor(swipeFraction) }
     }
 
+    // Convert resistance basis from Dp to pixels
+    val resistanceBasis = with(density) { 100.dp.toPx() }
+
     Box(
         modifier = modifier
-            .onSizeChanged { fullWidth = it.width } // Update fullWidth when size changes
+            .onSizeChanged { size ->
+                fullWidth = size.width
+            }
             .height(56.dp)
             .fillMaxWidth()
             .swipeable(
@@ -176,6 +188,11 @@ fun Track(
                 anchors = anchors,
                 thresholds = { _, _ -> FractionalThreshold(0.5f) },
                 velocityThreshold = Track.VelocityThreshold,
+                resistance = ResistanceConfig(
+                    basis = resistanceBasis,
+                    factorAtMin = 0f,
+                    factorAtMax = 1f
+                )
             )
             .background(
                 color = backgroundColor,

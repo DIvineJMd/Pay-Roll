@@ -48,6 +48,7 @@ import java.time.format.DateTimeFormatter
 
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.shadow
+import androidx.core.content.ContextCompat.startActivity
 import androidx.navigation.NavController
 import com.example.payroll.Worker.areNotificationsEnabled
 import com.example.payroll.Worker.checkGPSStatus
@@ -64,6 +65,7 @@ import com.example.payroll.database.AttendanceRequest
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -90,7 +92,6 @@ fun MainPage(
     var hasLocationPermissions by remember { mutableStateOf(false) }
     var hasBackgroundPermission by remember { mutableStateOf(false) }
     var hasBatteryOptimization by remember { mutableStateOf(false) }
-    var hasNotification by remember { mutableStateOf(false) }
     var hasPermissions by remember {
         mutableStateOf(
             hasAllPermissions(context)
@@ -98,9 +99,7 @@ fun MainPage(
     }
     val attendanceEntryState by viewModel.attendanceEntry.collectAsState()
     var transdate by remember { mutableStateOf("") }
-    val notificationPermission = rememberPermissionState(
-        permission = Manifest.permission.POST_NOTIFICATIONS
-    )
+
     var showDialog by remember { mutableStateOf(false) }
     var gpsStatus by remember { mutableStateOf(false) }
 
@@ -113,7 +112,8 @@ fun MainPage(
 
         }
     }
-
+    var showlocationDilog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val coroutineScope = rememberCoroutineScope()
     var attendanceState by remember { mutableStateOf<AttendanceRequest?>(null) }
@@ -124,7 +124,7 @@ fun MainPage(
         )
     }
     var selectedItem by remember { mutableStateOf(0) }
-    var showNotificationbox by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableStateOf(0) }
 
     val user by viewModel.userData.collectAsState()
     LaunchedEffect(Unit) {
@@ -159,14 +159,11 @@ fun MainPage(
             hasBackgroundPermission = background
             hasBatteryOptimization = battery
         }
-        hasNotification = areNotificationsEnabled(context)
-        if (hasNotification) {
-            showNotificationbox = false
-        } else {
-            showNotificationbox = true
-        }
-    }
+//        hasNotification = areNotificationsEnabled(context)
 
+    }
+    val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
+    val isFirst = sharedPreferences.getBoolean("isFirst", true)
     LaunchedEffect(Unit) {
         attendanceState = viewModel.getAttedance()
     }
@@ -202,9 +199,9 @@ fun MainPage(
             hasLocation = hasLocationPermissions,
             hasBackground = hasBackgroundPermission,
             hasBattery = hasBatteryOptimization,
-            hasNotificationPermission = hasNotification,
+            hasNotificationPermission = true,
             requestNotificationPermission = {
-                notificationPermission.launchPermissionRequest()
+//                notificationPermission.launchPermissionRequest()
             }
         ) {
 //            showBatteryDialog = true
@@ -219,7 +216,6 @@ fun MainPage(
         user?.locTracking,
         isTracking,
         showBottomSheet,
-        showNotificationbox,
         showDialog,
         hasLocationPermissions,
         hasBackgroundPermission
@@ -266,7 +262,29 @@ fun MainPage(
         }
     }
 
-
+    if (showlocationDilog) {
+        AlertDialog(
+            onDismissRequest = { showlocationDilog = false },
+            title = { Text("Location Permission Required") },
+            text = { Text("Please enable Location to continue using the app. Go to Permissions > Location > Allow All the time.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch(Dispatchers.Main) {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                            showlocationDilog = false
+                        }
+                    }
+                ) {
+                    Text("Enable Location")
+                }
+            }
+        )
+    }
 //    LaunchedEffect(hasPermissions, isTracking) {
 //
 //        println("-----> $hasPermissions $isTracking")
@@ -337,7 +355,7 @@ fun MainPage(
             }
         )
     }
-    LaunchedEffect(Unit, showDialog,  gpsStatus) {
+    LaunchedEffect(Unit, showDialog, gpsStatus) {
         println("Waiting..............")
         delay(13000)
         hasPermissions = hasAllPermissions(context)
@@ -454,19 +472,27 @@ fun MainPage(
                                     transdate = attendance.dto.transDate
                                     PunchInCircleButton(
                                         onClick = {
-                                            if (!context.isIgnoringBatteryOptimizations()) {
-                                                context.requestDisableBatteryOptimization()
-
-                                            }else{
-
-                                            if ((attendance.dto.inTime.isEmpty() && (attendance.dto.outTime?.isEmpty() != false)) ||
-                                                (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))
-                                            ) {
-                                                navHostController.navigate("Capture")
+                                            refreshKey++
+                                            if (!hasLocationPermissions(context)) {
+                                                showlocationDilog = true
                                             } else {
-                                                showBottomSheet = true
+
+                                                if(!context.isIgnoringBatteryOptimizations() && isFirst){
+                                                    context.requestDisableBatteryOptimization()
+                                                    val editor = sharedPreferences.edit()
+                                                    editor.putBoolean("isFirst", false)
+                                                    editor.apply()
+                                                }
+                                                else{
+                                                    if ((attendance.dto.inTime.isEmpty() && (attendance.dto.outTime?.isEmpty() != false)) ||
+                                                        (attendance.dto.inTime.isNotEmpty() && (attendance.dto.outTime?.isNotEmpty() == true))
+                                                    ) {
+                                                        navHostController.navigate("Capture")
+                                                    } else {
+                                                        showBottomSheet = true
+                                                    }
+                                                }
                                             }
-                                          }
                                         },
                                         InPunch = (attendance.dto.inTime.isEmpty() && attendance.dto.outTime.isNullOrEmpty()) ||
                                                 (attendance.dto.inTime.isNotEmpty() && attendance.dto.outTime?.isNotEmpty() == true)
@@ -584,7 +610,6 @@ fun MainPage(
             }
         }
         val currentDate = Date()
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val sheetState = rememberModalBottomSheetState()
         val scope = rememberCoroutineScope()
@@ -661,7 +686,7 @@ fun MainPage(
 
                         is Resource.Success -> {
                             isLoading = false
-                            datafetchedEntery=false
+                            datafetchedEntery = false
                             Toast.makeText(context, "Punch Out Successfully", Toast.LENGTH_SHORT)
                                 .show()
 
@@ -730,12 +755,13 @@ fun requestPermissionsInSequence(
         }
 
         !hasBackground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+//            println("mai bhi launching")
             backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
 
         !hasNotificationPermission -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                println("Requestiing notification")
+//                println("Requestiing notification")
                 requestNotificationPermission()
             } else {
                 openNotificationSettings(context)
@@ -797,6 +823,7 @@ fun Context.requestDisableBatteryOptimization() {
     val intent = Intent().apply {
         action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
         data = Uri.parse("package:$packageName")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Add this flag
     }
     startActivity(intent)
 }

@@ -10,10 +10,3 @@ import androidx.core.app.NotificationManagerCompat
 fun areNotificationsEnabled(context: Context): Boolean {
     return NotificationManagerCompat.from(context).areNotificationsEnabled()
 }
-@RequiresApi(Build.VERSION_CODES.O)
-fun openNotificationSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-        val putExtra = putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-    }
-    context.startActivity(intent)
-}
